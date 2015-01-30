@@ -1,0 +1,35 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+
+sourceCompatibility = 1.8
+
+group = 'info.batey.kafka'
+version = '0.1.0-SNAPSHOT'
+
+jar {
+    baseName = 'kafka-unit'
+    version = '0.1.0-SNAPSHOT'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile('org.apache.kafka:kafka_2.10:0.8.0') {
+        exclude module: 'slf4j-simple'
+        exclude module: 'log4j'
+        exclude module: 'slf4j-log4j12'
+    }
+    compile('org.apache.zookeeper:zookeeper:3.4.5') {
+        exclude module: 'slf4j-log4j12'
+        exclude module: 'log4j'
+    }
+
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.2.1'
+}
