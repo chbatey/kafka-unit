@@ -2,6 +2,8 @@
 
 Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testing applications that communicate with Kafka.
 
+It uses Kafka version ```0.8.0``` and ZooKeeper version ```3.4.5```
+
 ## Starting manually
 
 To start both a Kafka server and ZooKeeper instance, where the two numbers are the ZooKeeper port + the Kafka broker port.
