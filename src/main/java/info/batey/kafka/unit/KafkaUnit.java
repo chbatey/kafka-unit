@@ -6,7 +6,11 @@ import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
+import kafka.javaapi.producer.Producer;
+import kafka.producer.KeyedMessage;
+import kafka.producer.ProducerConfig;
 import kafka.serializer.StringDecoder;
+import kafka.serializer.StringEncoder;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
 import kafka.utils.VerifiableProperties;
@@ -19,20 +23,22 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.*;
 
-public class Kafka {
+public class KafkaUnit {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Kafka.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUnit.class);
 
     private KafkaServerStartable broker;
     private Zookeeper zookeeper;
     private final String zookeeperString;
+    private final String brokerString;
     private int zkPort;
     private int brokerPort;
 
-    public Kafka(int zkPort, int brokerPort) {
+    public KafkaUnit(int zkPort, int brokerPort) {
         this.zkPort = zkPort;
         this.brokerPort = brokerPort;
         this.zookeeperString = "localhost:" + zkPort;
+        this.brokerString = "localhost:" + brokerPort;
     }
 
     public void startup() {
@@ -60,7 +66,7 @@ public class Kafka {
     }
 
     public void createTopic(String topicName) {
-        String [] arguments = new String[8];
+        String[] arguments = new String[8];
         arguments[0] = "--zookeeper";
         arguments[1] = zookeeperString;
         arguments[2] = "--replica";
@@ -114,6 +120,18 @@ public class Kafka {
             singleThread.shutdown();
             javaConsumerConnector.shutdown();
         }
+    }
+
+    @SafeVarargs
+    public final void sendMessages(KeyedMessage<String, String> message, KeyedMessage<String, String>... messages) {
+        Properties props = new Properties();
+        props.put("serializer.class", StringEncoder.class.getName());
+        props.put("metadata.broker.list", brokerString);
+        ProducerConfig config = new ProducerConfig(props);
+        Producer<String, String> producer = new Producer<>(config);
+        producer.send(message);
+        producer.send(Arrays.asList(messages));
+
     }
 }
 
