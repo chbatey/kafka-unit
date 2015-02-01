@@ -16,9 +16,9 @@ repositories {
 }
 
 dependencies {
+    compile 'junit:junit:4.11'
     compile('org.apache.kafka:kafka_2.10:0.8.0') {
         exclude module: 'slf4j-simple'
-//        exclude module: 'log4j'
         exclude module: 'slf4j-log4j12'
     }
     compile('org.apache.zookeeper:zookeeper:3.4.5') {
