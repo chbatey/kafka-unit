@@ -15,7 +15,6 @@ apply plugin: 'release'
 sourceCompatibility = 1.8
 
 group = 'info.batey.kafka'
-version = '0.1.0-SNAPSHOT'
 
 jar {
     baseName = 'kafka-unit'
