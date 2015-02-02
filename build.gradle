@@ -18,7 +18,6 @@ group = 'info.batey.kafka'
 
 jar {
     baseName = 'kafka-unit'
-    version = '0.1.0-SNAPSHOT'
 }
 
 task javadocJar(type: Jar) {
@@ -65,7 +64,7 @@ uploadArchives {
                 name 'Kafka Unit'
                 packaging 'jar'
                 url 'https://github.com/chbatey/kafka-unit'
-
+                description 'Unit testing for Kafka'
                 scm {
                     connection 'scm:git@github.com:chbatey/kafka-unit.git'
                     developerConnection 'scm:git@github.com:chbatey/kafka-unit.git'
