@@ -1,4 +1,6 @@
 language: java
 jdk:
   - oraclejdk8
+before_install: "./gradlew assemble -x signArchives"
+install: echo "install"
 script: "./gradlew clean check -x signArchives"
