@@ -1,6 +1,6 @@
 package info.batey.kafka.unit;
 
-import kafka.admin.CreateTopicCommand;
+import kafka.admin.TopicCommand;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
@@ -66,17 +66,18 @@ public class KafkaUnit {
     }
 
     public void createTopic(String topicName) {
-        String[] arguments = new String[8];
-        arguments[0] = "--zookeeper";
-        arguments[1] = zookeeperString;
-        arguments[2] = "--replica";
-        arguments[3] = "1";
-        arguments[4] = "--partition";
-        arguments[5] = "1";
-        arguments[6] = "--topic";
-        arguments[7] = topicName;
+        String[] arguments = new String[9];
+        arguments[0] = "--create";
+        arguments[1] = "--zookeeper";
+        arguments[2] = zookeeperString;
+        arguments[3] = "--replication-factor";
+        arguments[4] = "1";
+        arguments[5] = "--partitions";
+        arguments[6] = "1";
+        arguments[7] = "--topic";
+        arguments[8] = topicName;
         LOGGER.info("Executing: CreateTopic " + Arrays.toString(arguments));
-        CreateTopicCommand.main(arguments);
+        TopicCommand.main(arguments);
     }
 
 
