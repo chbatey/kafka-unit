@@ -95,7 +95,7 @@ public class KafkaUnit {
         consumerProperties.put("auto.offset.reset", "smallest");
         ConsumerConnector javaConsumerConnector = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumerProperties));
         StringDecoder stringDecoder = new StringDecoder(new VerifiableProperties(new Properties()));
-        Map<String, Integer> topicMap = new HashMap<String, Integer>();
+        Map<String, Integer> topicMap = new HashMap<>();
         topicMap.put(topicName, 1);
         Map<String, List<KafkaStream<String, String>>> events = javaConsumerConnector.createMessageStreams(topicMap, stringDecoder, stringDecoder);
         List<KafkaStream<String, String>> events1 = events.get(topicName);
