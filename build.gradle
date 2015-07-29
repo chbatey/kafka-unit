@@ -12,7 +12,7 @@ buildscript {
 }
 apply plugin: 'release'
 
-sourceCompatibility = 1.8
+sourceCompatibility = 1.7
 
 group = 'info.batey.kafka'
 
