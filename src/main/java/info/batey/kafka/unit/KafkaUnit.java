@@ -86,7 +86,7 @@ public class KafkaUnit {
         if (zookeeper != null) zookeeper.shutdown();
     }
 
-    public List<String> readMessages(String topicName, int expectedMessages) throws TimeoutException {
+    public List<String> readMessages(String topicName, final int expectedMessages) throws TimeoutException {
         ExecutorService singleThread = Executors.newSingleThreadExecutor();
         Properties consumerProperties = new Properties();
         consumerProperties.put("zookeeper.connect", zookeeperString);
@@ -100,17 +100,20 @@ public class KafkaUnit {
         topicMap.put(topicName, 1);
         Map<String, List<KafkaStream<String, String>>> events = javaConsumerConnector.createMessageStreams(topicMap, stringDecoder, stringDecoder);
         List<KafkaStream<String, String>> events1 = events.get(topicName);
-        KafkaStream<String, String> kafkaStreams = events1.get(0);
+        final KafkaStream<String, String> kafkaStreams = events1.get(0);
 
-        Future<List<String>> submit = singleThread.submit(() -> {
-            List<String> messages = new ArrayList<>();
-            ConsumerIterator<String, String> iterator = kafkaStreams.iterator();
-            while (messages.size() != expectedMessages && iterator.hasNext()) {
-                String message = iterator.next().message();
-                LOGGER.info("Received message: {}", message);
-                messages.add(message);
+
+        Future<List<String>> submit = singleThread.submit(new Callable<List<String>>() {
+            public List<String> call() throws Exception {
+                List<String> messages = new ArrayList<>();
+                ConsumerIterator<String, String> iterator = kafkaStreams.iterator();
+                while (messages.size() != expectedMessages && iterator.hasNext()) {
+                    String message = iterator.next().message();
+                    LOGGER.info("Received message: {}", message);
+                    messages.add(message);
+                }
+                return messages;
             }
-            return messages;
         });
 
         try {
