@@ -18,10 +18,11 @@ package info.batey.kafka.unit;
 import kafka.admin.TopicCommand;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
-import kafka.consumer.ConsumerIterator;
+import kafka.consumer.ConsumerTimeoutException;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.javaapi.producer.Producer;
+import kafka.message.MessageAndMetadata;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 import kafka.serializer.StringDecoder;
@@ -29,6 +30,8 @@ import kafka.serializer.StringEncoder;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
 import kafka.utils.VerifiableProperties;
+
+import org.junit.ComparisonFailure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,6 +112,7 @@ public class KafkaUnit {
         consumerProperties.put("socket.timeout.ms", "500");
         consumerProperties.put("consumer.id", "test");
         consumerProperties.put("auto.offset.reset", "smallest");
+        consumerProperties.put("consumer.timeout.ms", "500");
         ConsumerConnector javaConsumerConnector = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumerProperties));
         StringDecoder stringDecoder = new StringDecoder(new VerifiableProperties(new Properties()));
         Map<String, Integer> topicMap = new HashMap<>();
@@ -121,11 +125,18 @@ public class KafkaUnit {
         Future<List<String>> submit = singleThread.submit(new Callable<List<String>>() {
             public List<String> call() throws Exception {
                 List<String> messages = new ArrayList<>();
-                ConsumerIterator<String, String> iterator = kafkaStreams.iterator();
-                while (messages.size() != expectedMessages && iterator.hasNext()) {
-                    String message = iterator.next().message();
-                    LOGGER.info("Received message: {}", message);
-                    messages.add(message);
+                try {
+                    for (MessageAndMetadata<String, String> kafkaStream : kafkaStreams) {
+                        String message = kafkaStream.message();
+                        LOGGER.info("Received message: {}", message);
+                        messages.add(message);
+                    }
+                } catch (ConsumerTimeoutException e) {
+                    // always gets throws reaching the end of the stream
+                }
+                if (messages.size() != expectedMessages) {
+                    throw new ComparisonFailure("Incorrect number of messages returned", Integer.toString(expectedMessages),
+                            Integer.toString(messages.size()));
                 }
                 return messages;
             }
@@ -134,6 +145,9 @@ public class KafkaUnit {
         try {
             return submit.get(3, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            if (e.getCause() instanceof ComparisonFailure) {
+                throw (ComparisonFailure) e.getCause();
+            }
             throw new TimeoutException("Timed out waiting for messages");
         } finally {
             singleThread.shutdown();
