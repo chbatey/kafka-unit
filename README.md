@@ -12,7 +12,7 @@ It uses Kafka version ```0.8.2.1``` and ZooKeeper version ```3.4.6```
 <dependency>
     <groupId>info.batey.kafka</groupId>
     <artifactId>kafka-unit</artifactId>
-    <version>0.1.3</version>
+    <version>0.2</version>
 </dependency>
 ```
 
