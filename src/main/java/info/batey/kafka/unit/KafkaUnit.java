@@ -33,6 +33,7 @@ public class KafkaUnit {
     private final String brokerString;
     private int zkPort;
     private int brokerPort;
+    private Producer<String, String> producer = null;
 
     public KafkaUnit(int zkPort, int brokerPort) {
         this.zkPort = zkPort;
@@ -128,11 +129,13 @@ public class KafkaUnit {
 
     @SafeVarargs
     public final void sendMessages(KeyedMessage<String, String> message, KeyedMessage<String, String>... messages) {
-        Properties props = new Properties();
-        props.put("serializer.class", StringEncoder.class.getName());
-        props.put("metadata.broker.list", brokerString);
-        ProducerConfig config = new ProducerConfig(props);
-        Producer<String, String> producer = new Producer<>(config);
+        if (producer == null) {
+            Properties props = new Properties();
+            props.put("serializer.class", StringEncoder.class.getName());
+            props.put("metadata.broker.list", brokerString);
+            ProducerConfig config = new ProducerConfig(props);
+            producer = new Producer<>(config);
+        }
         producer.send(message);
         producer.send(Arrays.asList(messages));
 
