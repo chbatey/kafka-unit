@@ -18,11 +18,14 @@ public class KafkaIntegrationTest {
     @Before
     public void setUp() throws Exception {
         kafkaUnitServer = new KafkaUnit(5000, 5001);
+        kafkaUnitServer.setKafkaBrokerConfig("log.segment.bytes", "1024");
         kafkaUnitServer.startup();
     }
 
     @After
     public void shutdown() throws Exception {
+        assert kafkaUnitServer.broker.serverConfig().logSegmentBytes() == 1024;
+
         kafkaUnitServer.shutdown();
     }
 

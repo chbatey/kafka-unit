@@ -27,13 +27,15 @@ public class KafkaUnit {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUnit.class);
 
-    private KafkaServerStartable broker;
+    public KafkaServerStartable broker;
+
     private Zookeeper zookeeper;
     private final String zookeeperString;
     private final String brokerString;
     private int zkPort;
     private int brokerPort;
     private Producer<String, String> producer = null;
+    private Properties kafkaBrokerConfig = new Properties();
 
     public KafkaUnit(int zkPort, int brokerPort) {
         this.zkPort = zkPort;
@@ -54,19 +56,22 @@ public class KafkaUnit {
             throw new RuntimeException("Unable to start Kafka", e);
         }
         logDir.deleteOnExit();
-        Properties properties = new Properties();
-        properties.setProperty("zookeeper.connect", zookeeperString);
-        properties.setProperty("broker.id", "1");
-        properties.setProperty("host.name", "localhost");
-        properties.setProperty("port", Integer.toString(brokerPort));
-        properties.setProperty("log.dir", logDir.getAbsolutePath());
-        properties.setProperty("log.flush.interval.messages", String.valueOf(1));
+        kafkaBrokerConfig.setProperty("zookeeper.connect", zookeeperString);
+        kafkaBrokerConfig.setProperty("broker.id", "1");
+        kafkaBrokerConfig.setProperty("host.name", "localhost");
+        kafkaBrokerConfig.setProperty("port", Integer.toString(brokerPort));
+        kafkaBrokerConfig.setProperty("log.dir", logDir.getAbsolutePath());
+        kafkaBrokerConfig.setProperty("log.flush.interval.messages", String.valueOf(1));
 
-        broker = new KafkaServerStartable(new KafkaConfig(properties));
+        broker = new KafkaServerStartable(new KafkaConfig(kafkaBrokerConfig));
         broker.startup();
     }
 
     public void createTopic(String topicName) {
+        createTopic(topicName, 1);
+    }
+
+    public void createTopic(String topicName, Integer numPartitions) {
         String[] arguments = new String[9];
         arguments[0] = "--create";
         arguments[1] = "--zookeeper";
@@ -74,7 +79,7 @@ public class KafkaUnit {
         arguments[3] = "--replication-factor";
         arguments[4] = "1";
         arguments[5] = "--partitions";
-        arguments[6] = "1";
+        arguments[6] = "" + Integer.valueOf(numPartitions);
         arguments[7] = "--topic";
         arguments[8] = topicName;
         LOGGER.info("Executing: CreateTopic " + Arrays.toString(arguments));
@@ -138,7 +143,15 @@ public class KafkaUnit {
         }
         producer.send(message);
         producer.send(Arrays.asList(messages));
-
     }
+
+    /**
+     * Set custom broker configuration.
+     * See avaliable config keys in the kafka documentation: http://kafka.apache.org/documentation.html#brokerconfigs
+     */
+    public final void setKafkaBrokerConfig(String configKey, String configValue) {
+        kafkaBrokerConfig.setProperty(configKey, configValue);
+    }
+
 }
 
