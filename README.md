@@ -4,7 +4,7 @@
 
 Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testing applications that communicate with Kafka.
 
-It uses Kafka version ```0.8.2.1``` and ZooKeeper version ```3.4.6```
+It uses Kafka version ```0.8.2.2``` and ZooKeeper version ```3.4.6```
 
 ## Maven central
 
