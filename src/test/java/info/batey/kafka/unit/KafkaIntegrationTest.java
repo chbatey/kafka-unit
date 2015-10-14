@@ -18,13 +18,14 @@ package info.batey.kafka.unit;
 import kafka.producer.KeyedMessage;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ComparisonFailure;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class KafkaIntegrationTest {
 
@@ -56,8 +57,8 @@ public class KafkaIntegrationTest {
         assertEquals(Arrays.asList("value"), messages);
     }
 
-    @Test(expected = TimeoutException.class, timeout = 4000)
-    public void shouldTimeoutIfMoreMessagesRequestedThatSent() throws Exception {
+    @Test(expected = ComparisonFailure.class)
+    public void shouldThrowComparisonFailureIfMoreMessagesRequestedThanSent() throws Exception {
         //given
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
@@ -65,6 +66,14 @@ public class KafkaIntegrationTest {
 
         //when
         kafkaUnitServer.sendMessages(keyedMessage);
-        kafkaUnitServer.readMessages(testTopic, 2);
+
+        try {
+            kafkaUnitServer.readMessages(testTopic, 2);
+            fail("Expected ComparisonFailure to be thrown");
+        } catch (ComparisonFailure e) {
+            assertEquals("Wrong value for 'expected'", "2", e.getExpected());
+            assertEquals("Wrong value for 'actual'", "1", e.getActual());
+            assertEquals("Wrong error message", "Incorrect number of messages returned", e.getMessage());
+        }
     }
 }
