@@ -16,11 +16,14 @@
 package info.batey.kafka.unit;
 
 import kafka.producer.KeyedMessage;
+import kafka.server.KafkaServerStartable;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ComparisonFailure;
 import org.junit.Test;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 
@@ -40,7 +43,10 @@ public class KafkaIntegrationTest {
 
     @After
     public void shutdown() throws Exception {
-        assert kafkaUnitServer.broker.serverConfig().logSegmentBytes() == 1024;
+        Field f = kafkaUnitServer.getClass().getDeclaredField("broker");
+        f.setAccessible(true);
+        KafkaServerStartable broker = (KafkaServerStartable) f.get(kafkaUnitServer);
+        assertEquals(1024, broker.serverConfig().logSegmentBytes());
 
         kafkaUnitServer.shutdown();
     }

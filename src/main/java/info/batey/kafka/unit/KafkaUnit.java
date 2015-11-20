@@ -45,7 +45,7 @@ public class KafkaUnit {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUnit.class);
 
-    public KafkaServerStartable broker;
+    private KafkaServerStartable broker;
 
     private Zookeeper zookeeper;
     private final String zookeeperString;
