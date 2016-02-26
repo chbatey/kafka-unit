@@ -62,8 +62,38 @@ public class KafkaUnit {
         this.brokerString = "localhost:" + brokerPort;
     }
 
-    public void startup() {
+    public KafkaUnit(String zkConnectionString, String kafkaConnectionString) {
+        this.zkPort = parseConnectionString(zkConnectionString);;
+        this.brokerPort = parseConnectionString(kafkaConnectionString);
+        this.zookeeperString = "localhost:" + zkPort;
+        this.brokerString = "localhost:" + brokerPort;
+    }
 
+    private int parseConnectionString(String connectionString) {
+        try {
+            String[] hostPorts = connectionString.split(",");
+
+            if (hostPorts.length != 1) {
+                throw new IllegalArgumentException("Only one 'host:port' pair is allowed in connection string");
+            }
+
+            String[] hostPort = hostPorts[0].split(":");
+
+            if (hostPort.length != 2) {
+                throw new IllegalArgumentException("Invalid format of a 'host:port' pair");
+            }
+
+            if (!"localhost".equals(hostPort[0])) {
+                throw new IllegalArgumentException("Only localhost is allowed for KafkaUnit");
+            }
+
+            return Integer.parseInt(hostPort[1]);
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot parse connectionString " + connectionString, e);
+        }
+    }
+
+    public void startup() {
         zookeeper = new Zookeeper(zkPort);
         zookeeper.startup();
 
