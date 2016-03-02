@@ -4,7 +4,11 @@
 
 Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testing applications that communicate with Kafka.
 
-It uses Kafka version ```0.8.2.1``` and ZooKeeper version ```3.4.6```
+## Versions
+| kafka-unit | Kafka broker | Zookeeper |
+|------------|--------------|-----------|
+| 0.1.4      | 0.9.0.1      | 3.4.6     |
+| 0.1.3      | 0.8.2.1      | 3.4.6     |
 
 ## Maven central
 
@@ -12,7 +16,7 @@ It uses Kafka version ```0.8.2.1``` and ZooKeeper version ```3.4.6```
 <dependency>
     <groupId>info.batey.kafka</groupId>
     <artifactId>kafka-unit</artifactId>
-    <version>0.1.2</version>
+    <version>0.1.4</version>
 </dependency>
 ```
 

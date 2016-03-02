@@ -44,7 +44,7 @@ public class KafkaIntegrationTest {
         assertEquals(Arrays.asList("value"), messages);
     }
 
-    @Test(expected = TimeoutException.class, timeout = 4000)
+    @Test(expected = TimeoutException.class, timeout = 20_000)
     public void shouldTimeoutIfMoreMessagesRequestedThatSent() throws Exception {
         //given
         String testTopic = "TestTopic";
