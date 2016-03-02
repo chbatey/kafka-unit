@@ -30,6 +30,8 @@ import kafka.serializer.StringEncoder;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
 import kafka.utils.VerifiableProperties;
+import kafka.utils.ZkUtils;
+import org.apache.kafka.common.security.JaasUtils;
 
 import org.junit.ComparisonFailure;
 import org.slf4j.Logger;
@@ -120,6 +122,7 @@ public class KafkaUnit {
     }
 
     public void createTopic(String topicName, Integer numPartitions) {
+        // setup
         String[] arguments = new String[9];
         arguments[0] = "--create";
         arguments[1] = "--zookeeper";
@@ -130,8 +133,14 @@ public class KafkaUnit {
         arguments[6] = "" + Integer.valueOf(numPartitions);
         arguments[7] = "--topic";
         arguments[8] = topicName;
+        TopicCommand.TopicCommandOptions opts = new TopicCommand.TopicCommandOptions(arguments);
+
+        ZkUtils zkUtils = ZkUtils.apply(opts.options().valueOf(opts.zkConnectOpt()),
+                30000, 30000, JaasUtils.isZkSecurityEnabled());
+
+        // run
         LOGGER.info("Executing: CreateTopic " + Arrays.toString(arguments));
-        TopicCommand.main(arguments);
+        TopicCommand.createTopic(zkUtils, opts);
     }
 
 

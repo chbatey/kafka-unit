@@ -46,7 +46,7 @@ public class KafkaIntegrationTest {
         Field f = kafkaUnitServer.getClass().getDeclaredField("broker");
         f.setAccessible(true);
         KafkaServerStartable broker = (KafkaServerStartable) f.get(kafkaUnitServer);
-        assertEquals(1024, broker.serverConfig().logSegmentBytes());
+        assertEquals(1024, (int)broker.serverConfig().logSegmentBytes());
 
         kafkaUnitServer.shutdown();
     }
