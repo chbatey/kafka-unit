@@ -17,15 +17,17 @@ package info.batey.kafka.unit;
 
 import org.junit.rules.ExternalResource;
 
+import java.io.IOException;
+
 public class KafkaUnitRule extends ExternalResource {
 
-    private final int zkPort;
-    private final int kafkaPort;
     private final KafkaUnit kafkaUnit;
 
+    public KafkaUnitRule() throws IOException {
+        this.kafkaUnit = new KafkaUnit();
+    }
+
     public KafkaUnitRule(int zkPort, int kafkaPort) {
-        this.zkPort = zkPort;
-        this.kafkaPort = kafkaPort;
         this.kafkaUnit = new KafkaUnit(zkPort, kafkaPort);
     }
 
@@ -40,11 +42,11 @@ public class KafkaUnitRule extends ExternalResource {
     }
 
     public int getZkPort() {
-        return zkPort;
+        return kafkaUnit.getZkPort();
     }
 
     public int getKafkaPort() {
-        return kafkaPort;
+        return kafkaUnit.getBrokerPort();
     }
 
     public KafkaUnit getKafkaUnit() {

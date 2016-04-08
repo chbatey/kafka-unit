@@ -31,6 +31,7 @@ import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
 import kafka.utils.VerifiableProperties;
 import kafka.utils.ZkUtils;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.security.JaasUtils;
 
 import org.junit.ComparisonFailure;
@@ -39,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.*;
@@ -57,6 +59,10 @@ public class KafkaUnit {
     private Producer<String, String> producer = null;
     private Properties kafkaBrokerConfig = new Properties();
 
+    public KafkaUnit() throws IOException {
+        this(getEphemeralPort(), getEphemeralPort());
+    }
+
     public KafkaUnit(int zkPort, int brokerPort) {
         this.zkPort = zkPort;
         this.brokerPort = brokerPort;
@@ -65,13 +71,10 @@ public class KafkaUnit {
     }
 
     public KafkaUnit(String zkConnectionString, String kafkaConnectionString) {
-        this.zkPort = parseConnectionString(zkConnectionString);;
-        this.brokerPort = parseConnectionString(kafkaConnectionString);
-        this.zookeeperString = "localhost:" + zkPort;
-        this.brokerString = "localhost:" + brokerPort;
+        this(parseConnectionString(zkConnectionString), parseConnectionString(kafkaConnectionString));
     }
 
-    private int parseConnectionString(String connectionString) {
+    private static int parseConnectionString(String connectionString) {
         try {
             String[] hostPorts = connectionString.split(",");
 
@@ -95,6 +98,12 @@ public class KafkaUnit {
         }
     }
 
+    private static int getEphemeralPort() throws IOException {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        }
+    }
+
     public void startup() {
         zookeeper = new Zookeeper(zkPort);
         zookeeper.startup();
@@ -115,6 +124,18 @@ public class KafkaUnit {
 
         broker = new KafkaServerStartable(new KafkaConfig(kafkaBrokerConfig));
         broker.startup();
+    }
+
+    public String getKafkaConnect() {
+        return brokerString;
+    }
+
+    public int getZkPort() {
+        return zkPort;
+    }
+
+    public int getBrokerPort() {
+        return brokerPort;
     }
 
     public void createTopic(String topicName) {
@@ -220,6 +241,5 @@ public class KafkaUnit {
     public final void setKafkaBrokerConfig(String configKey, String configValue) {
         kafkaBrokerConfig.setProperty(configKey, configValue);
     }
-
 }
 

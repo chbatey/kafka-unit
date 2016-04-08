@@ -7,6 +7,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
 ## Versions
 | kafka-unit | Kafka broker            | Zookeeper |
 |------------|-------------------------|-----------|
+| 0.5        | kafka_2.11:0.9.0.1      | 3.4.6     |
 | 0.4        | kafka_2.11:0.9.0.1      | 3.4.6     |
 | 0.3        | kafka_2.11:0.8.2.2      | 3.4.6     |
 | 0.2        | kafka_2.11:0.8.2.1      | 3.4.6     |
@@ -17,7 +18,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
 <dependency>
     <groupId>info.batey.kafka</groupId>
     <artifactId>kafka-unit</artifactId>
-    <version>0.4</version>
+    <version>0.5</version>
 </dependency>
 ```
 
@@ -26,7 +27,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
 To start both a Kafka server and ZooKeeper instance, where the two numbers are the ZooKeeper port + the Kafka broker port.
 
 ```java
-KafkaUnit kafkaUnitServer = new KafkaUnit(5000, 5001);
+KafkaUnit kafkaUnitServer = new KafkaUnit();
 kafkaUnitServer.startup();
 kafkaUnitServer.shutdown();
 ```
@@ -37,7 +38,7 @@ The alternative constructor allows providing connection strings rather than port
 KafkaUnit kafkaUnitServer = new KafkaUnit("localhost:5000", "localhost:5001");
 ```
 
-It's required that such a connection string consists of only one host:port pair - otherwise an exception will be thrown.
+It's required that such a connection string consists of only one host:port pair - otherwise an exception will be thrown, and the `host` will be replaced by `localhost`.
 
 You can then write your own code to interact with Kafka or use the following methods:
 
@@ -54,6 +55,17 @@ List<String> messages = kafkaUnitServer.readMessages(testTopic, 1);
 ```
 
 Only String messages are supported at the moment.
+
+Alternatively, you can use `getKafkaConnect()` to manually configure producer and consumer clients like:
+```java
+Properties props = new Properties();
+props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getCanonicalName());
+props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
+props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaUnitServer.getKafkaConnect());
+
+Producer<Long, String> producer = new KafkaProducer<>(props);
+
+```
 
 ## Using the JUnit Rule
 
