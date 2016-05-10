@@ -24,7 +24,6 @@ import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.javaapi.producer.Producer;
 import kafka.message.MessageAndMetadata;
 import kafka.producer.KeyedMessage;
-import kafka.producer.KeyedMessage$;
 import kafka.producer.ProducerConfig;
 import kafka.serializer.StringDecoder;
 import kafka.serializer.StringEncoder;
