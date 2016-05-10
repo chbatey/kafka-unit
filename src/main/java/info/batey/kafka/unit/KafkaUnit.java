@@ -24,6 +24,7 @@ import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.javaapi.producer.Producer;
 import kafka.message.MessageAndMetadata;
 import kafka.producer.KeyedMessage;
+import kafka.producer.KeyedMessage$;
 import kafka.producer.ProducerConfig;
 import kafka.serializer.StringDecoder;
 import kafka.serializer.StringEncoder;
@@ -170,7 +171,26 @@ public class KafkaUnit {
         if (zookeeper != null) zookeeper.shutdown();
     }
 
+    public List<KeyedMessage<String, String>> readKeyedMessages(final String topicName, final int expectedMessages) throws TimeoutException {
+        return readMessages(topicName, expectedMessages, new MessageExtractor<KeyedMessage<String, String>>() {
+
+            @Override
+            public KeyedMessage<String, String> extract(MessageAndMetadata<String, String> messageAndMetadata) {
+                return new KeyedMessage(topicName, messageAndMetadata.key(), messageAndMetadata.message());
+            }
+        });
+    }
+
     public List<String> readMessages(String topicName, final int expectedMessages) throws TimeoutException {
+        return readMessages(topicName, expectedMessages, new MessageExtractor<String>() {
+            @Override
+            public String extract(MessageAndMetadata<String, String> messageAndMetadata) {
+                return messageAndMetadata.message();
+            }
+        });
+    }
+
+    private <T> List<T> readMessages(String topicName, final int expectedMessages, final MessageExtractor<T> messageExtractor) throws TimeoutException {
         ExecutorService singleThread = Executors.newSingleThreadExecutor();
         Properties consumerProperties = new Properties();
         consumerProperties.put("zookeeper.connect", zookeeperString);
@@ -188,13 +208,13 @@ public class KafkaUnit {
         final KafkaStream<String, String> kafkaStreams = events1.get(0);
 
 
-        Future<List<String>> submit = singleThread.submit(new Callable<List<String>>() {
-            public List<String> call() throws Exception {
-                List<String> messages = new ArrayList<>();
+        Future<List<T>> submit = singleThread.submit(new Callable<List<T>>() {
+            public List<T> call() throws Exception {
+                List<T> messages = new ArrayList<>();
                 try {
                     for (MessageAndMetadata<String, String> kafkaStream : kafkaStreams) {
-                        String message = kafkaStream.message();
-                        LOGGER.info("Received message: {}", message);
+                        T message = messageExtractor.extract(kafkaStream);
+                        LOGGER.info("Received message: {}", kafkaStream.message());
                         messages.add(message);
                     }
                 } catch (ConsumerTimeoutException e) {
@@ -240,6 +260,10 @@ public class KafkaUnit {
      */
     public final void setKafkaBrokerConfig(String configKey, String configValue) {
         kafkaBrokerConfig.setProperty(configKey, configValue);
+    }
+
+    private interface MessageExtractor<T> {
+        T extract(MessageAndMetadata<String, String> messageAndMetadata);
     }
 }
 

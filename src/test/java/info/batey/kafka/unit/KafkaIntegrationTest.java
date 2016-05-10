@@ -104,6 +104,23 @@ public class KafkaIntegrationTest {
         assertEquals("test", kafkaUnitServer.readMessages(topic, 1).get(0));
     }
 
+    @Test
+    public void  canReadKeyedMessages() throws Exception {
+        //given
+        String testTopic = "TestTopic";
+        kafkaUnitServer.createTopic(testTopic);
+        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+
+        //when
+        kafkaUnitServer.sendMessages(keyedMessage);
+
+        KeyedMessage<String, String> receivedMessage = kafkaUnitServer.readKeyedMessages(testTopic, 1).get(0);
+
+        assertEquals("Received message value is incorrect", "value", receivedMessage.message());
+        assertEquals("Received message key is incorrect", "key", receivedMessage.key());
+        assertEquals("Received message topic is incorrect", testTopic, receivedMessage.topic());
+    }
+
     private void assertKafkaServerIsAvailable(KafkaUnit server) throws TimeoutException {
         //given
         String testTopic = "TestTopic";
