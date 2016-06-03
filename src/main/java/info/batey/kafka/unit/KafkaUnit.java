@@ -122,7 +122,7 @@ public class KafkaUnit {
                 try {
                     FileUtils.deleteDirectory(logDir);
                 } catch (IOException e) {
-                    LOGGER.warn("Problems deleting temporary directory {}.", logDir.getAbsolutePath(), e);
+                    LOGGER.warn("Problems deleting temporary directory " + logDir.getAbsolutePath(), e);
                 }
             }
         }));
