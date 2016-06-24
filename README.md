@@ -7,6 +7,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
 ## Versions
 | kafka-unit | Kafka broker            | Zookeeper |
 |------------|-------------------------|-----------|
+| 0.6        | kafka_2.11:0.10.0.0     | 3.4.6     |
 | 0.5        | kafka_2.11:0.9.0.1      | 3.4.6     |
 | 0.4        | kafka_2.11:0.9.0.1      | 3.4.6     |
 | 0.3        | kafka_2.11:0.8.2.2      | 3.4.6     |
