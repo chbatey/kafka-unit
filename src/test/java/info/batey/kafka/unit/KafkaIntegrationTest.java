@@ -68,7 +68,7 @@ public class KafkaIntegrationTest {
         KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
 
         //when
-        kafkaUnitServer.sendMessages(keyedMessage);
+        kafkaUnitServer.send(keyedMessage);
 
         try {
             kafkaUnitServer.readMessages(testTopic, 2);
