@@ -224,6 +224,7 @@ public class KafkaUnit {
     }
 
     /**
+     * @return Broker port
      * @deprecated Use getBrokers()
      */
     @Deprecated
@@ -261,6 +262,11 @@ public class KafkaUnit {
 
     }
 
+    /**
+     *
+     * @param partitionToBrokerReplicaAssignments Map from partition number to a set of brokers assignment per replica.
+     * @param topicName The topic to reassign partition for
+     */
     @SuppressWarnings("unchecked")
     public void reassignPartitions(String topicName, Map<Integer, Set<Integer>> partitionToBrokerReplicaAssignments) {
         logger.info("Executing: Reassigning partitions " + partitionToBrokerReplicaAssignments);
@@ -444,6 +450,8 @@ public class KafkaUnit {
 
 
     /**
+     * @param message The 1st message to send
+     * @param messages The rest of messages to send
      * @deprecated Use send(messages...)
      */
     @Deprecated
@@ -473,19 +481,19 @@ public class KafkaUnit {
             logger.debug("Created kafka producer");
         }
 
-        if (messages != null && messages.length > 0) {
-            List<Future<RecordMetadata>> futures = new ArrayList<>(messages.length);
-            for (KeyedMessage<String, String> msg : messages) {
-                logger.debug("Sent msg: "+msg);
-                futures.add(producer.send(new ProducerRecord<>(msg.topic(), msg.key(), msg.message())));
-            }
-            logger.debug("Done sending messages. Now waiting for send to finish");
-            for (Future<RecordMetadata> recordMetadataFuture : futures) {
-                try {
-                    recordMetadataFuture.get(5, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
+        if (messages == null || messages.length == 0) return;
+
+        List<Future<RecordMetadata>> futures = new ArrayList<>(messages.length);
+        for (KeyedMessage<String, String> msg : messages) {
+            logger.debug("Sent msg: "+msg);
+            futures.add(producer.send(new ProducerRecord<>(msg.topic(), msg.key(), msg.message())));
+        }
+        logger.debug("Done sending messages. Now waiting for send to finish");
+        for (Future<RecordMetadata> recordMetadataFuture : futures) {
+            try {
+                recordMetadataFuture.get(5, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         }
 
@@ -494,7 +502,8 @@ public class KafkaUnit {
 
     /**
      * Set custom broker configuration.
-     * See available config keys in the kafka documentation: http://kafka.apache.org/documentation.html#brokerconfigs
+     * @param configKey See available config keys in the kafka documentation: http://kafka.apache.org/documentation.html#brokerconfigs
+     * @param configValue The values to set for the key
      */
     public void setKafkaBrokerConfig(String configKey, String configValue) {
         kafkaBrokerConfig.setProperty(configKey, configValue);
@@ -531,4 +540,3 @@ public class KafkaUnit {
     }
 
 }
-
