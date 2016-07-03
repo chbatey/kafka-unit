@@ -15,58 +15,76 @@
  */
 package info.batey.kafka.unit;
 
+import kafka.admin.ReassignPartitionsCommand;
 import kafka.admin.TopicCommand;
+import kafka.common.TopicAndPartition;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerTimeoutException;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
-import kafka.javaapi.producer.Producer;
 import kafka.message.MessageAndMetadata;
 import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
 import kafka.serializer.StringDecoder;
-import kafka.serializer.StringEncoder;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
 import kafka.utils.VerifiableProperties;
+import kafka.utils.ZKStringSerializer$;
 import kafka.utils.ZkUtils;
+import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkConnection;
 import org.apache.commons.io.FileUtils;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.security.JaasUtils;
-
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.ComparisonFailure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Console;
+import scala.collection.JavaConversions;
+import scala.collection.Seq;
+import scala.collection.mutable.Buffer;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.nio.file.Files;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class KafkaUnit {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUnit.class);
+    private static final Logger logger = LoggerFactory.getLogger(KafkaUnit.class);
 
-    private KafkaServerStartable broker;
-
+    private List<KafkaBroker> brokers;
     private Zookeeper zookeeper;
     private final String zookeeperString;
-    private final String brokerString;
+    private String brokerString;
     private int zkPort;
-    private int brokerPort;
-    private Producer<String, String> producer = null;
+    private int brokerPort = -1;
+    private KafkaProducer<String, String> producer = null;
     private Properties kafkaBrokerConfig = new Properties();
     private int zkMaxConnections;
-
-    public KafkaUnit() throws IOException {
-        this(getEphemeralPort(), getEphemeralPort());
-    }
+    private int numOfBrokers;
+    private ZkClient zkClient;
+    private ZkUtils zkUtils;
 
     public KafkaUnit(int zkPort, int brokerPort) {
         this(zkPort, brokerPort, 16);
@@ -78,6 +96,7 @@ public class KafkaUnit {
         this.zookeeperString = "localhost:" + zkPort;
         this.brokerString = "localhost:" + brokerPort;
         this.zkMaxConnections = zkMaxConnections;
+        withNumOfBrokers(1);
     }
 
     public KafkaUnit(String zkConnectionString, String kafkaConnectionString) {
@@ -86,6 +105,14 @@ public class KafkaUnit {
 
     public KafkaUnit(String zkConnectionString, String kafkaConnectionString, int zkMaxConnections) {
         this(parseConnectionString(zkConnectionString), parseConnectionString(kafkaConnectionString), zkMaxConnections);
+    }
+
+    public KafkaUnit withNumOfBrokers(int numOfBrokers) {
+        if (numOfBrokers < 1) {
+            throw new IllegalArgumentException("numOfBrokers must be > 1");
+        }
+        this.numOfBrokers = numOfBrokers;
+        return this;
     }
 
     private static int parseConnectionString(String connectionString) {
@@ -112,22 +139,53 @@ public class KafkaUnit {
         }
     }
 
-    private static int getEphemeralPort() throws IOException {
+    private static int getEphemeralPort() {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed finding an available port: "+e.getMessage(), e);
         }
     }
 
     public void startup() {
-        zookeeper = new Zookeeper(zkPort, zkMaxConnections);
-        zookeeper.startup();
+        startZookeeper();
+        zkClient = new ZkClient(getZookeeperString(), 30000, 30000, ZKStringSerializer$.MODULE$);
+        zkUtils = new ZkUtils(zkClient, new ZkConnection(getZookeeperString()), false);
 
+        kafkaBrokerConfig.setProperty("zookeeper.connect", zookeeperString);
+        kafkaBrokerConfig.setProperty("host.name", "localhost");
+        kafkaBrokerConfig.setProperty("port", Integer.toString(brokerPort));
+        kafkaBrokerConfig.setProperty("log.flush.interval.messages", String.valueOf(1));
+        kafkaBrokerConfig.setProperty("delete.topic.enable", String.valueOf(true));
+        kafkaBrokerConfig.setProperty("offsets.topic.replication.factor", String.valueOf(1));
+
+        brokers = new ArrayList<>();
+
+        // Maintain backward compatibility
+        if (numOfBrokers == 1) {
+            if (brokerPort == -1) {
+                brokerPort = getEphemeralPort();
+            }
+
+            KafkaBroker kafkaBroker = startBroker(1, brokerPort);
+            brokers.add(kafkaBroker);
+        } else {
+            for (int i = 1; i <= numOfBrokers; i++) {
+                logger.info("Starting broker #"+i);
+                brokers.add(startBroker(i, getEphemeralPort()));
+            }
+        }
+        brokerString = "localhost:"+brokers.get(0).getPort();
+    }
+
+    private KafkaBroker startBroker(int brokerNum, int brokerPort) {
         final File logDir;
         try {
-            logDir = Files.createTempDirectory("kafka").toFile();
+            logDir = Files.createTempDirectory("kafka-broker-"+brokerNum).toFile();
         } catch (IOException e) {
-            throw new RuntimeException("Unable to start Kafka", e);
+            throw new RuntimeException("Unable to start Kafka (Broker #"+brokerNum+")", e);
         }
+
         logDir.deleteOnExit();
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override
@@ -135,21 +193,26 @@ public class KafkaUnit {
                 try {
                     FileUtils.deleteDirectory(logDir);
                 } catch (IOException e) {
-                    LOGGER.warn("Problems deleting temporary directory " + logDir.getAbsolutePath(), e);
+                    logger.warn("Problems deleting temporary directory " + logDir.getAbsolutePath(), e);
                 }
             }
         }));
-        kafkaBrokerConfig.setProperty("zookeeper.connect", zookeeperString);
-        kafkaBrokerConfig.setProperty("broker.id", "1");
-        kafkaBrokerConfig.setProperty("host.name", "localhost");
-        kafkaBrokerConfig.setProperty("port", Integer.toString(brokerPort));
-        kafkaBrokerConfig.setProperty("log.dir", logDir.getAbsolutePath());
-        kafkaBrokerConfig.setProperty("log.flush.interval.messages", String.valueOf(1));
-        kafkaBrokerConfig.setProperty("delete.topic.enable", String.valueOf(true));
-        kafkaBrokerConfig.setProperty("offsets.topic.replication.factor", String.valueOf(1));
 
-        broker = new KafkaServerStartable(new KafkaConfig(kafkaBrokerConfig));
+        Properties brokerConfig = new Properties();
+        brokerConfig.putAll(kafkaBrokerConfig);
+        brokerConfig.setProperty("broker.id", String.valueOf(brokerNum));
+        brokerConfig.setProperty("port", Integer.toString(brokerPort));
+        brokerConfig.setProperty("log.dir", logDir.getAbsolutePath());
+
+        KafkaServerStartable broker = new KafkaServerStartable(new KafkaConfig(brokerConfig));
         broker.startup();
+
+        return new KafkaBroker(brokerPort, broker);
+    }
+
+    private void startZookeeper() {
+        zookeeper = new Zookeeper(zkPort, zkMaxConnections);
+        zookeeper.startup();
     }
 
     public String getKafkaConnect() {
@@ -160,6 +223,10 @@ public class KafkaUnit {
         return zkPort;
     }
 
+    /**
+     * @deprecated Use getBrokers()
+     */
+    @Deprecated
     public int getBrokerPort() {
         return brokerPort;
     }
@@ -186,12 +253,28 @@ public class KafkaUnit {
                 30000, 30000, JaasUtils.isZkSecurityEnabled());
         try{
             // run
-            LOGGER.info("Executing: CreateTopic " + Arrays.toString(arguments));
+            logger.info("Executing: CreateTopic " + Arrays.toString(arguments));
             TopicCommand.createTopic(zkUtils, opts);
         } finally {
             zkUtils.close();
         }
 
+    }
+
+    @SuppressWarnings("unchecked")
+    public void reassignPartitions(String topicName, Map<Integer, Set<Integer>> partitionToBrokerReplicaAssignments) {
+        logger.info("Executing: Reassigning partitions " + partitionToBrokerReplicaAssignments);
+
+        Map<TopicAndPartition, Seq<Object>> partitionToBrokerReplicaAssignment = new HashMap<>();
+        for (int partition : partitionToBrokerReplicaAssignments.keySet()) {
+            Buffer<Object> brokers = JavaConversions.asScalaBuffer(new ArrayList(partitionToBrokerReplicaAssignments.get(partition)));
+            partitionToBrokerReplicaAssignment.put(new TopicAndPartition(topicName, partition), brokers);
+        }
+
+        ReassignPartitionsCommand command = new ReassignPartitionsCommand(zkUtils, JavaConversions.mapAsScalaMap(partitionToBrokerReplicaAssignment));
+        if (!command.reassignPartitions()) {
+            throw new RuntimeException("Reassign failed");
+        }
     }
 
     /**
@@ -209,7 +292,7 @@ public class KafkaUnit {
         final List<String> topics = new ArrayList<>();
         try{
             // run
-            LOGGER.info("Executing: ListTopics " + Arrays.toString(arguments));
+            logger.info("Executing: ListTopics " + Arrays.toString(arguments));
 
             PrintStream oldOut = Console.out();
             try{
@@ -261,7 +344,7 @@ public class KafkaUnit {
                 30000, 30000, JaasUtils.isZkSecurityEnabled());
         try{
             // run
-            LOGGER.info("Executing: DeleteTopic " + Arrays.toString(arguments));
+            logger.info("Executing: DeleteTopic " + Arrays.toString(arguments));
             TopicCommand.deleteTopic(zkUtils, opts);
         } finally {
             zkUtils.close();
@@ -269,7 +352,14 @@ public class KafkaUnit {
     }
 
     public void shutdown() {
-        if (broker != null) broker.shutdown();
+        for (int i = 0; i < brokers.size(); i++) {
+            logger.info("Shutting down broker #{}", i+1);
+            brokers.get(i).getKafkaServer().shutdown();
+            brokers.get(i).getKafkaServer().awaitShutdown();
+        }
+
+        if (zkUtils != null) zkUtils.close();
+        if (zkClient != null) zkClient.close();
         if (zookeeper != null) zookeeper.shutdown();
     }
 
@@ -278,7 +368,7 @@ public class KafkaUnit {
 
             @Override
             public KeyedMessage<String, String> extract(MessageAndMetadata<String, String> messageAndMetadata) {
-                return new KeyedMessage(topicName, messageAndMetadata.key(), messageAndMetadata.message());
+                return new KeyedMessage<>(topicName, messageAndMetadata.key(), messageAndMetadata.message());
             }
         });
     }
@@ -325,7 +415,7 @@ public class KafkaUnit {
                 try {
                     for (MessageAndMetadata<String, String> kafkaStream : kafkaStreams) {
                         T message = messageExtractor.extract(kafkaStream);
-                        LOGGER.info("Received message: {}", kafkaStream.message());
+                        logger.debug("Received message: {}", kafkaStream.message());
                         messages.add(message);
                     }
                 } catch (ConsumerTimeoutException e) {
@@ -352,29 +442,93 @@ public class KafkaUnit {
         }
     }
 
-    @SafeVarargs
+
+    /**
+     * @deprecated Use send(messages...)
+     */
+    @Deprecated
+    @SuppressWarnings("unchecked")
     public final void sendMessages(KeyedMessage<String, String> message, KeyedMessage<String, String>... messages) {
+        KeyedMessage<String, String>[] msgs = new KeyedMessage[messages.length + 1];
+        System.arraycopy(messages, 0, msgs, 0, messages.length);
+        msgs[messages.length] = message;
+
+        send(msgs);
+    }
+
+    @SuppressWarnings("unchecked")
+    public final void send(Collection<KeyedMessage<String, String>> messages) {
+        send(messages.toArray(new KeyedMessage[messages.size()]));
+    }
+
+    @SafeVarargs
+    public final void send(KeyedMessage<String, String>... messages) {
         if (producer == null) {
             Properties props = new Properties();
-            props.put("serializer.class", StringEncoder.class.getName());
-            props.put("metadata.broker.list", brokerString);
-            ProducerConfig config = new ProducerConfig(props);
-            producer = new Producer<>(config);
+            props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+            props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+            props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerString);
+            props.put(ProducerConfig.RETRIES_CONFIG, String.valueOf(10));
+            producer = new KafkaProducer<>(props);
+            logger.debug("Created kafka producer");
         }
-        producer.send(message);
-        producer.send(Arrays.asList(messages));
+
+        if (messages != null && messages.length > 0) {
+            List<Future<RecordMetadata>> futures = new ArrayList<>(messages.length);
+            for (KeyedMessage<String, String> msg : messages) {
+                logger.debug("Sent msg: "+msg);
+                futures.add(producer.send(new ProducerRecord<>(msg.topic(), msg.key(), msg.message())));
+            }
+            logger.debug("Done sending messages. Now waiting for send to finish");
+            for (Future<RecordMetadata> recordMetadataFuture : futures) {
+                try {
+                    recordMetadataFuture.get(5, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+        logger.info("Sent {} messages", messages.length);
     }
 
     /**
      * Set custom broker configuration.
-     * See avaliable config keys in the kafka documentation: http://kafka.apache.org/documentation.html#brokerconfigs
+     * See available config keys in the kafka documentation: http://kafka.apache.org/documentation.html#brokerconfigs
      */
-    public final void setKafkaBrokerConfig(String configKey, String configValue) {
+    public void setKafkaBrokerConfig(String configKey, String configValue) {
         kafkaBrokerConfig.setProperty(configKey, configValue);
+    }
+
+    public List<KafkaBroker> getBrokers() {
+        return Collections.unmodifiableList(brokers);
+    }
+
+    public String getZookeeperString() {
+        return zookeeperString;
     }
 
     private interface MessageExtractor<T> {
         T extract(MessageAndMetadata<String, String> messageAndMetadata);
     }
+
+    public static class KafkaBroker {
+        private final int port;
+        private final KafkaServerStartable kafkaServer;
+
+        public KafkaBroker(int port, KafkaServerStartable kafkaServer) {
+            this.port = port;
+            this.kafkaServer = kafkaServer;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
+        public KafkaServerStartable getKafkaServer() {
+            return kafkaServer;
+        }
+    }
+
 }
 

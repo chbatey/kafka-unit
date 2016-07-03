@@ -15,16 +15,7 @@
  */
 package info.batey.kafka.unit;
 
-import static org.junit.Assert.*;
-
-import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.TimeoutException;
-
 import kafka.producer.KeyedMessage;
-import kafka.server.KafkaServerStartable;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -35,6 +26,17 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.ComparisonFailure;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.TimeoutException;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class KafkaIntegrationTest {
 
@@ -49,11 +51,7 @@ public class KafkaIntegrationTest {
 
     @After
     public void shutdown() throws Exception {
-        Field f = kafkaUnitServer.getClass().getDeclaredField("broker");
-        f.setAccessible(true);
-        KafkaServerStartable broker = (KafkaServerStartable) f.get(kafkaUnitServer);
-        assertEquals(1024, (int)broker.serverConfig().logSegmentBytes());
-
+        assertThat(kafkaUnitServer.getBrokers().get(0).getKafkaServer().serverConfig().logSegmentBytes()).isEqualTo(1024);
         kafkaUnitServer.shutdown();
     }
 
@@ -150,14 +148,14 @@ public class KafkaIntegrationTest {
     }
 
     @Test
-    public void  canReadKeyedMessages() throws Exception {
+    public void canReadKeyedMessages() throws Exception {
         //given
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
         KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
 
         //when
-        kafkaUnitServer.sendMessages(keyedMessage);
+        kafkaUnitServer.send(keyedMessage);
 
         KeyedMessage<String, String> receivedMessage = kafkaUnitServer.readKeyedMessages(testTopic, 1).get(0);
 
@@ -181,7 +179,7 @@ public class KafkaIntegrationTest {
         KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
 
         //when
-        server.sendMessages(keyedMessage);
+        server.send(keyedMessage);
         List<String> messages = server.readMessages(testTopic, 1);
 
         //then
