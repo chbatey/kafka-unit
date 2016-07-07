@@ -45,7 +45,7 @@ The alternative constructor allows providing connection strings rather than port
 KafkaUnit kafkaUnitServer = new KafkaUnit("localhost:5000", "localhost:5001");
 ```
 
-It's required that such a connection string consists of only one `host:port` pair - otherwise an exception will be thrown, and the `host` will be replaced by `localhost`.
+Currently only `localhost` is supported and it's required that the connection string consists of only one `localhost:[port]` pair.
 
 You can then write your own code to interact with Kafka or use the following methods:
 
@@ -101,8 +101,7 @@ public class KafkaUnitIntegrationTest {
 This will start/stop the broker every test, so that particular test can't interfere with the next. 
 Contrary to `KafkaUnit()` constructor, it does not throw checked `IOException` when socket initialization fails, but wraps it in runtime exception and thus is suitable for use as `@Rule` field in tests.
 
-If you want to start server on specific ports, use `KafkaUnitRule(int, int)` constructor, which accepts ZooKeeper and
- Kafka broker ports respectively (just like `KafkaUnit(int, int)` constructor):
+If you want to start server on specific ports, use `KafkaUnitRule(int, int)` or `KafkaUnitRule(String, String)` constructor, which accepts ZooKeeper and Kafka broker ports or connection strings respectively (just like corresponding `KafkaUnit` constructors), e.g.:
 
 ```java
     @Rule

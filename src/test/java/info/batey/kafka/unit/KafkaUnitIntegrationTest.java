@@ -30,11 +30,19 @@ public class KafkaUnitIntegrationTest {
     public KafkaUnitRule kafkaUnitRule = new KafkaUnitRule(6000, 6001);
 
     @Rule
+    public KafkaUnitRule kafkaUnitRuleWithConnectionStrings = new KafkaUnitRule("localhost:5000", "localhost:5001");
+
+    @Rule
     public KafkaUnitRule kafkaUnitRuleWithEphemeralPorts = new KafkaUnitRule();
 
     @Test
     public void junitRuleShouldHaveStartedKafka() throws Exception {
         assertKafkaStartsAndSendsMessage(kafkaUnitRule.getKafkaUnit());
+    }
+
+    @Test
+    public void junitRuleShouldHaveStartedKafkaWithConnectionStrings() throws Exception {
+        assertKafkaStartsAndSendsMessage(kafkaUnitRuleWithConnectionStrings.getKafkaUnit());
     }
 
     @Test
