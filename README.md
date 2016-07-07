@@ -61,7 +61,7 @@ And to read messages:
 List<String> messages = kafkaUnitServer.readMessages(testTopic, 1);
 ```
 
-Only String messages are supported at the moment.
+Only `String` messages are supported at the moment.
 
 Alternatively, you can use `getKafkaConnect()` to manually configure producer and consumer clients like:
 
@@ -98,9 +98,11 @@ public class KafkaUnitIntegrationTest {
 }
 ```
 
-This will start/stop the broker every test, so that particular test can't interfere with the next.
+This will start/stop the broker every test, so that particular test can't interfere with the next. 
+Contrary to `KafkaUnit()` constructor, it does not throw checked `IOException` when socket initialization fails, but wraps it in runtime exception and thus is suitable for use as `@Rule` field in tests.
 
-If you want to start server on specific ports, use `KafkaUnitRule(int, int)` constructor, which accepts ZooKeeper and Kafka broker ports respectively:
+If you want to start server on specific ports, use `KafkaUnitRule(int, int)` constructor, which accepts ZooKeeper and
+ Kafka broker ports respectively (just like `KafkaUnit(int, int)` constructor):
 
 ```java
     @Rule
