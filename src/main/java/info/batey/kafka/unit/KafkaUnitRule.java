@@ -23,8 +23,12 @@ public class KafkaUnitRule extends ExternalResource {
 
     private final KafkaUnit kafkaUnit;
 
-    public KafkaUnitRule() throws IOException {
-        this.kafkaUnit = new KafkaUnit();
+    public KafkaUnitRule() {
+        try {
+            this.kafkaUnit = new KafkaUnit();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public KafkaUnitRule(int zkPort, int kafkaPort) {

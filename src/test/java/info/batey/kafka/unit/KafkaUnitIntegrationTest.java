@@ -29,11 +29,23 @@ public class KafkaUnitIntegrationTest {
     @Rule
     public KafkaUnitRule kafkaUnitRule = new KafkaUnitRule(6000, 6001);
 
+    @Rule
+    public KafkaUnitRule kafkaUnitRuleWithEphemeralPorts = new KafkaUnitRule();
+
     @Test
     public void junitRuleShouldHaveStartedKafka() throws Exception {
+        assertKafkaStartsAndSendsMessage(kafkaUnitRule.getKafkaUnit());
+    }
+
+    @Test
+    public void junitRuleShouldHaveStartedKafkaWithEphemeralPorts() throws Exception {
+        assertKafkaStartsAndSendsMessage(kafkaUnitRuleWithEphemeralPorts.getKafkaUnit());
+    }
+
+    public void assertKafkaStartsAndSendsMessage(final KafkaUnit kafkaUnit) throws Exception {
         //given
         String testTopic = "TestTopic";
-        kafkaUnitRule.getKafkaUnit().createTopic(testTopic);
+        kafkaUnit.createTopic(testTopic);
         KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
 
         //when
