@@ -15,7 +15,7 @@
  */
 package info.batey.kafka.unit;
 
-import kafka.producer.KeyedMessage;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -54,10 +54,10 @@ public class KafkaUnitIntegrationTest {
         //given
         String testTopic = "TestTopic";
         kafkaUnit.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
-        kafkaUnitRule.getKafkaUnit().sendMessages(keyedMessage);
+        kafkaUnitRule.getKafkaUnit().sendMessages(producerRecord);
         List<String> messages = kafkaUnitRule.getKafkaUnit().readMessages(testTopic, 1);
 
         //then

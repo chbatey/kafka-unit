@@ -21,20 +21,18 @@ import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerTimeoutException;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
-import kafka.javaapi.producer.Producer;
 import kafka.message.MessageAndMetadata;
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
 import kafka.serializer.StringDecoder;
-import kafka.serializer.StringEncoder;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
 import kafka.utils.VerifiableProperties;
 import kafka.utils.ZkUtils;
 import org.apache.commons.io.FileUtils;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.security.JaasUtils;
-
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.ComparisonFailure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,8 +41,23 @@ import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Files;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
 
 public class KafkaUnit {
 
@@ -181,12 +194,12 @@ public class KafkaUnit {
         if (zookeeper != null) zookeeper.shutdown();
     }
 
-    public List<KeyedMessage<String, String>> readKeyedMessages(final String topicName, final int expectedMessages) throws TimeoutException {
-        return readMessages(topicName, expectedMessages, new MessageExtractor<KeyedMessage<String, String>>() {
+    public List<ProducerRecord<String, String>> readProducerRecords(final String topicName, final int expectedMessages) throws TimeoutException {
+        return readMessages(topicName, expectedMessages, new MessageExtractor<ProducerRecord<String, String>>() {
 
             @Override
-            public KeyedMessage<String, String> extract(MessageAndMetadata<String, String> messageAndMetadata) {
-                return new KeyedMessage(topicName, messageAndMetadata.key(), messageAndMetadata.message());
+            public ProducerRecord<String, String> extract(MessageAndMetadata<String, String> messageAndMetadata) {
+                return new ProducerRecord<>(topicName, messageAndMetadata.key(), messageAndMetadata.message());
             }
         });
     }
@@ -252,16 +265,19 @@ public class KafkaUnit {
     }
 
     @SafeVarargs
-    public final void sendMessages(KeyedMessage<String, String> message, KeyedMessage<String, String>... messages) {
+    public final void sendMessages(ProducerRecord<String, String> message, ProducerRecord<String, String>... messages) {
         if (producer == null) {
             Properties props = new Properties();
-            props.put("serializer.class", StringEncoder.class.getName());
-            props.put("metadata.broker.list", brokerString);
-            ProducerConfig config = new ProducerConfig(props);
-            producer = new Producer<>(config);
+            props.put(KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
+            props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
+            props.put(BOOTSTRAP_SERVERS_CONFIG, brokerString);
+            producer = new KafkaProducer<>(props);
         }
         producer.send(message);
-        producer.send(Arrays.asList(messages));
+        for (ProducerRecord<String, String> msg : messages) {
+            producer.send(msg);
+        }
+        producer.close();
     }
 
     /**
