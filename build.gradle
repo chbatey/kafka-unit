@@ -115,6 +115,7 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.11'
     testCompile group: 'log4j', name: 'log4j', version: '1.2.17'
     testCompile group: 'org.slf4j', name:'slf4j-log4j12', version:'1.7.21'
+    testCompile 'org.rnorth.duct-tape:duct-tape:1.0.4'
 }
 
 task wrapper(type: Wrapper) {

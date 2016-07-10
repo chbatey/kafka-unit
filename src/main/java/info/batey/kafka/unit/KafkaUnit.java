@@ -109,7 +109,7 @@ public class KafkaUnit {
 
     public KafkaUnit withNumOfBrokers(int numOfBrokers) {
         if (numOfBrokers < 1) {
-            throw new IllegalArgumentException("numOfBrokers must be > 1");
+            throw new IllegalArgumentException("numOfBrokers must be >= 1");
         }
         this.numOfBrokers = numOfBrokers;
         return this;
@@ -149,7 +149,12 @@ public class KafkaUnit {
 
     public void startup() {
         startZookeeper();
+
+        // ZKStringSerializer$.MODULE$ - this obscure object creation is what makes this client work
+        // Without it , the topic is reported as created but is actually not usable and produces very hard
+        // to understand behaviour
         zkClient = new ZkClient(getZookeeperString(), 30000, 30000, ZKStringSerializer$.MODULE$);
+
         zkUtils = new ZkUtils(zkClient, new ZkConnection(getZookeeperString()), false);
 
         kafkaBrokerConfig.setProperty("zookeeper.connect", zookeeperString);
