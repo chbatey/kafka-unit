@@ -17,8 +17,6 @@ package info.batey.kafka.unit;
 
 import org.junit.rules.ExternalResource;
 
-import java.io.IOException;
-
 public class KafkaUnitRule extends ExternalResource {
 
     private final KafkaUnit kafkaUnit;
@@ -26,15 +24,17 @@ public class KafkaUnitRule extends ExternalResource {
     public KafkaUnitRule() {
         try {
             this.kafkaUnit = new KafkaUnit();
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
+    @Deprecated
     public KafkaUnitRule(int zkPort, int kafkaPort) {
         this.kafkaUnit = new KafkaUnit(zkPort, kafkaPort);
     }
 
+    @Deprecated
     public KafkaUnitRule(String zkConnectionString, String kafkaConnectionString) {
         this.kafkaUnit = new KafkaUnit(zkConnectionString, kafkaConnectionString);
     }
@@ -55,14 +55,6 @@ public class KafkaUnitRule extends ExternalResource {
     @Override
     protected void after() {
         kafkaUnit.shutdown();
-    }
-
-    public int getZkPort() {
-        return kafkaUnit.getZkPort();
-    }
-
-    public int getKafkaPort() {
-        return kafkaUnit.getBrokerPort();
     }
 
     public KafkaUnit getKafkaUnit() {

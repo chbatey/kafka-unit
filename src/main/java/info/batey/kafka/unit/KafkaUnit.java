@@ -38,6 +38,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.ComparisonFailure;
 import org.slf4j.Logger;
@@ -241,7 +242,7 @@ public class KafkaUnit {
         createTopic(topicName, 1);
     }
 
-    public void createTopic(String topicName, Integer numPartitions) {
+    public void createTopic(String topicName, int numPartitions) {
         // setup
         String[] arguments = new String[9];
         arguments[0] = "--create";
@@ -250,7 +251,7 @@ public class KafkaUnit {
         arguments[3] = "--replication-factor";
         arguments[4] = "1";
         arguments[5] = "--partitions";
-        arguments[6] = "" + Integer.valueOf(numPartitions);
+        arguments[6] = "" + numPartitions;
         arguments[7] = "--topic";
         arguments[8] = topicName;
         TopicCommand.TopicCommandOptions opts = new TopicCommand.TopicCommandOptions(arguments);
