@@ -73,10 +73,6 @@ public class KafkaUnit {
     private Producer<String, String> producer = null;
     private Properties kafkaBrokerConfig = new Properties();
 
-    public KafkaUnit() throws IOException {
-        this(getEphemeralPort(), getEphemeralPort());
-    }
-
     public KafkaUnit(int zkPort, int brokerPort) {
         this.zkPort = zkPort;
         this.brokerPort = brokerPort;

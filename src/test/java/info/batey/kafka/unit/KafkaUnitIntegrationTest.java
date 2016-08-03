@@ -32,9 +32,6 @@ public class KafkaUnitIntegrationTest {
     @Rule
     public KafkaUnitRule kafkaUnitRuleWithConnectionStrings = new KafkaUnitRule("localhost:5000", "localhost:5001");
 
-    @Rule
-    public KafkaUnitRule kafkaUnitRuleWithEphemeralPorts = new KafkaUnitRule();
-
     @Test
     public void junitRuleShouldHaveStartedKafka() throws Exception {
         assertKafkaStartsAndSendsMessage(kafkaUnitRule.getKafkaUnit());
@@ -43,11 +40,6 @@ public class KafkaUnitIntegrationTest {
     @Test
     public void junitRuleShouldHaveStartedKafkaWithConnectionStrings() throws Exception {
         assertKafkaStartsAndSendsMessage(kafkaUnitRuleWithConnectionStrings.getKafkaUnit());
-    }
-
-    @Test
-    public void junitRuleShouldHaveStartedKafkaWithEphemeralPorts() throws Exception {
-        assertKafkaStartsAndSendsMessage(kafkaUnitRuleWithEphemeralPorts.getKafkaUnit());
     }
 
     public void assertKafkaStartsAndSendsMessage(final KafkaUnit kafkaUnit) throws Exception {

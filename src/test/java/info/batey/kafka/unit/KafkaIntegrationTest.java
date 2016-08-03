@@ -34,7 +34,6 @@ import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class KafkaIntegrationTest {
@@ -83,16 +82,7 @@ public class KafkaIntegrationTest {
         }
     }
 
-    @Test
-    public void startKafkaServerWithoutParamsAndSendMessage() throws Exception {
-        KafkaUnit noParamServer = new KafkaUnit();
-        noParamServer.startup();
-        assertKafkaServerIsAvailable(noParamServer);
-        assertTrue("Kafka port needs to be non-negative", noParamServer.getBrokerPort() > 0);
-        assertTrue("Zookeeper port needs to be non-negative", noParamServer.getZkPort() > 0);
-    }
-
-    @Test
+     @Test
     public void canUseKafkaConnectToProduce() throws Exception {
         final String topic = "KafkakConnectTestTopic";
         Properties props = new Properties();

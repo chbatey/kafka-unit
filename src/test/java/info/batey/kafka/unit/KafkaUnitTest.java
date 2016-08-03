@@ -39,9 +39,4 @@ public class KafkaUnitTest {
     public void failToConstructKafkaUnitFromInvalidKafkaConnectionString() {
         new KafkaUnit("localhost:2181", "localhost-9092");
     }
-
-    @Test
-    public void successfullyConstructKafkaUnitWithoutAnyParams() throws Exception {
-        new KafkaUnit();
-    }
 }
