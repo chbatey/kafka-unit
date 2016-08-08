@@ -125,4 +125,6 @@ public class KafkaIntegrationTest {
         //then
         assertEquals(Arrays.asList("value"), messages);
     }
+
+
 }

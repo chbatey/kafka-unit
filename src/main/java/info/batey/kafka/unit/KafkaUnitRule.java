@@ -25,6 +25,10 @@ public class KafkaUnitRule extends ExternalResource {
         this.kafkaUnit = new KafkaUnit(zkPort, kafkaPort);
     }
 
+    public KafkaUnitRule(int zkPort, int kafkaPort, boolean isSSLEnabled) {
+        this.kafkaUnit = new KafkaUnit(zkPort, kafkaPort, isSSLEnabled);
+    }
+
     public KafkaUnitRule(String zkConnectionString, String kafkaConnectionString) {
         this.kafkaUnit = new KafkaUnit(zkConnectionString, kafkaConnectionString);
     }
