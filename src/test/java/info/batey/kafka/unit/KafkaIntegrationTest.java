@@ -49,11 +49,10 @@ public class KafkaIntegrationTest {
 
     @After
     public void shutdown() throws Exception {
-        Field f = kafkaUnitServer.getClass().getDeclaredField("broker");
+        Field f = kafkaUnitServer.getClass().getSuperclass().getDeclaredField("broker");
         f.setAccessible(true);
         KafkaServerStartable broker = (KafkaServerStartable) f.get(kafkaUnitServer);
         assertEquals(1024, (int)broker.serverConfig().logSegmentBytes());
-
         kafkaUnitServer.shutdown();
     }
 

@@ -1,6 +1,6 @@
 package info.batey.kafka.unit.ssl;
 
-import info.batey.kafka.unit.KafkaUnit;
+import info.batey.kafka.unit.KafkaUnitWithSSL;
 import kafka.server.KafkaServerStartable;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -31,7 +31,9 @@ import static org.junit.Assert.assertEquals;
 
 public class KafkaSSLIntegrationTest  {
 
-    private KafkaUnit kafkaUnitServer;
+    private KafkaUnitWithSSL kafkaUnitServer;
+    private static final int ZOOKEEPER_PORT = 6000;
+    private static final int BROKER_PORT = 6001;
 
     Function<ConsumerRecords<String, String>, List<String>> consumerRecordsToList = (cr) -> {
         List<String> expectedMessages = new ArrayList<>();
@@ -41,14 +43,14 @@ public class KafkaSSLIntegrationTest  {
 
     @Before
     public void setUp() throws Exception {
-        kafkaUnitServer = new KafkaUnit(5000, 5001,true);
+        kafkaUnitServer = new KafkaUnitWithSSL(ZOOKEEPER_PORT, BROKER_PORT);
         kafkaUnitServer.setKafkaBrokerConfig("log.segment.bytes", "1024");
         kafkaUnitServer.startup();
     }
 
     @After
     public void shutdown() throws Exception {
-        Field f = kafkaUnitServer.getClass().getDeclaredField("broker");
+        Field f = kafkaUnitServer.getClass().getSuperclass().getDeclaredField("broker");
         f.setAccessible(true);
         KafkaServerStartable broker = (KafkaServerStartable) f.get(kafkaUnitServer);
         assertEquals(1024, (int)broker.serverConfig().logSegmentBytes());
@@ -67,10 +69,9 @@ public class KafkaSSLIntegrationTest  {
         Producer<Long, String> producer = new KafkaProducer<>(props);
         ProducerRecord<Long, String> record = new ProducerRecord<>(topic, 1L, "test");
         producer.send(record);
-        final ConsumerRecords<String, String> expectedRecords = kafkaUnitServer.readMessagesOverSSL(topic, 1);
+        final ConsumerRecords<String, String> expectedRecords = kafkaUnitServer.readMessages(topic, 1);
         assertEquals("test", consumerRecordsToList.apply(expectedRecords).get(0));
     }
-
 
     @Test
     public void canReadProducerRecords() throws Exception {
@@ -82,7 +83,7 @@ public class KafkaSSLIntegrationTest  {
         //when
         kafkaUnitServer.sendMessages(producerRecord);
 
-        ConsumerRecords<String, String> receivedMessages = kafkaUnitServer.readMessagesOverSSL(testTopic, 1);
+        ConsumerRecords<String, String> receivedMessages = kafkaUnitServer.readMessages(testTopic, 1);
         ConsumerRecord<String, String> recievedMessage =null;
         if(receivedMessages.iterator().hasNext()){
           recievedMessage = receivedMessages.iterator().next();
@@ -107,7 +108,7 @@ public class KafkaSSLIntegrationTest  {
         return props;
     }
 
-    private void assertKafkaServerIsAvailableWithSSL(KafkaUnit server) throws TimeoutException {
+    private void assertKafkaServerIsAvailableWithSSL(KafkaUnitWithSSL server) throws TimeoutException {
         //given
         String testTopic = "TestTopic";
         List<String> expectedMessages = new ArrayList<>();
@@ -116,7 +117,7 @@ public class KafkaSSLIntegrationTest  {
 
         //when
         server.sendMessages(producerRecord);
-        ConsumerRecords<String, String> messages = server.readMessagesOverSSL(testTopic, 1);
+        ConsumerRecords<String, String> messages = server.readMessages(testTopic, 1);
         messages.forEach(r -> expectedMessages.add(r.value()));
         //then
         assertEquals(Arrays.asList("value"),expectedMessages);

@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package info.batey.kafka.unit;
+package info.batey.kafka.unit.rules;
 
+import info.batey.kafka.unit.KafkaUnit;
 import org.junit.rules.ExternalResource;
 
 public class KafkaUnitRule extends ExternalResource {
@@ -23,10 +24,6 @@ public class KafkaUnitRule extends ExternalResource {
 
     public KafkaUnitRule(int zkPort, int kafkaPort) {
         this.kafkaUnit = new KafkaUnit(zkPort, kafkaPort);
-    }
-
-    public KafkaUnitRule(int zkPort, int kafkaPort, boolean isSSLEnabled) {
-        this.kafkaUnit = new KafkaUnit(zkPort, kafkaPort, isSSLEnabled);
     }
 
     public KafkaUnitRule(String zkConnectionString, String kafkaConnectionString) {

@@ -15,6 +15,7 @@
  */
 package info.batey.kafka.unit;
 
+import info.batey.kafka.unit.rules.KafkaUnitRule;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.Rule;
 import org.junit.Test;

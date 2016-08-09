@@ -15,7 +15,7 @@
  */
 package info.batey.kafka.unit.ssl;
 
-import info.batey.kafka.unit.KafkaUnitRule;
+import info.batey.kafka.unit.rules.KafkaUnitRuleWithSSL;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.Rule;
 import org.junit.Test;
@@ -26,10 +26,9 @@ public class KafkaUnitSslIntegrationTest {
 
     private static final int ZOOKEEPER_PORT = 6000;
     private static final int BROKER_PORT = 6001;
-    private static final String KEYSTORE_PATH = "/Users/lakitu/repos/kafka-unit/src/main/resources/";
 
     @Rule
-    public KafkaUnitRule kafkaUnitSslRule = new KafkaUnitRule(ZOOKEEPER_PORT, BROKER_PORT, true);
+    public KafkaUnitRuleWithSSL kafkaUnitSslRule = new KafkaUnitRuleWithSSL(ZOOKEEPER_PORT, BROKER_PORT);
 
     @Test
     public void junitRuleShouldHaveStartedKafkaWithSsl() throws Exception {
@@ -47,7 +46,7 @@ public class KafkaUnitSslIntegrationTest {
         kafkaUnitSslRule.getKafkaUnit().sendMessages(producerRecord);
 
         // then
-       kafkaUnitSslRule.getKafkaUnit().readMessagesOverSSL(testTopic, 1);
+       kafkaUnitSslRule.getKafkaUnit().readMessages(testTopic, 1);
 
     }
 
