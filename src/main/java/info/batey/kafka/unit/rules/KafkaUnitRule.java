@@ -13,23 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package info.batey.kafka.unit;
+package info.batey.kafka.unit.rules;
 
+import info.batey.kafka.unit.KafkaUnit;
 import org.junit.rules.ExternalResource;
-
-import java.io.IOException;
 
 public class KafkaUnitRule extends ExternalResource {
 
     private final KafkaUnit kafkaUnit;
-
-    public KafkaUnitRule() {
-        try {
-            this.kafkaUnit = new KafkaUnit();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     public KafkaUnitRule(int zkPort, int kafkaPort) {
         this.kafkaUnit = new KafkaUnit(zkPort, kafkaPort);

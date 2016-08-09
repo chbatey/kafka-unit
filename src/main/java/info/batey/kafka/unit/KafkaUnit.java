@@ -15,59 +15,54 @@
  */
 package info.batey.kafka.unit;
 
-import kafka.admin.TopicCommand;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerTimeoutException;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
-import kafka.javaapi.producer.Producer;
 import kafka.message.MessageAndMetadata;
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
 import kafka.serializer.StringDecoder;
-import kafka.serializer.StringEncoder;
-import kafka.server.KafkaConfig;
-import kafka.server.KafkaServerStartable;
 import kafka.utils.VerifiableProperties;
-import kafka.utils.ZkUtils;
-import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.security.JaasUtils;
-
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.ComparisonFailure;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.nio.file.Files;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-public class KafkaUnit {
+import static info.batey.kafka.unit.KafkaUnitConfig.BROKER_HOST_NAME;
+import static info.batey.kafka.unit.KafkaUnitConfig.BROKER_ID;
+import static info.batey.kafka.unit.KafkaUnitConfig.BROKER_PORT;
+import static info.batey.kafka.unit.KafkaUnitConfig.CONSUMER_ID;
+import static info.batey.kafka.unit.KafkaUnitConfig.CONSUMER_SOCKET_TIMEOUT_MS;
+import static info.batey.kafka.unit.KafkaUnitConfig.CONSUMER_TIMEOUT_MS;
+import static info.batey.kafka.unit.KafkaUnitConfig.ZOOKEEPER_CONNECT;
+import static info.batey.kafka.unit.KafkaUnitConfig.ZOOKEEPER_LOG_DIRECTORY;
+import static info.batey.kafka.unit.KafkaUnitConfig.ZOOKEEPER_LOG_FLUSH_INTERVAL_MESSAGES;
+import static java.lang.String.valueOf;
+import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
+import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUnit.class);
-
-    private KafkaServerStartable broker;
-
-    private Zookeeper zookeeper;
-    private final String zookeeperString;
-    private final String brokerString;
-    private int zkPort;
-    private int brokerPort;
-    private Producer<String, String> producer = null;
-    private Properties kafkaBrokerConfig = new Properties();
-
-    public KafkaUnit() throws IOException {
-        this(getEphemeralPort(), getEphemeralPort());
-    }
+public class KafkaUnit extends AbstractKafkaUnit {
 
     public KafkaUnit(int zkPort, int brokerPort) {
         this.zkPort = zkPort;
         this.brokerPort = brokerPort;
-        this.zookeeperString = "localhost:" + zkPort;
+        this.zookeeperUri = "localhost:" + zkPort;
         this.brokerString = "localhost:" + brokerPort;
     }
 
@@ -75,118 +70,31 @@ public class KafkaUnit {
         this(parseConnectionString(zkConnectionString), parseConnectionString(kafkaConnectionString));
     }
 
-    private static int parseConnectionString(String connectionString) {
-        try {
-            String[] hostPorts = connectionString.split(",");
-
-            if (hostPorts.length != 1) {
-                throw new IllegalArgumentException("Only one 'host:port' pair is allowed in connection string");
-            }
-
-            String[] hostPort = hostPorts[0].split(":");
-
-            if (hostPort.length != 2) {
-                throw new IllegalArgumentException("Invalid format of a 'host:port' pair");
-            }
-
-            if (!"localhost".equals(hostPort[0])) {
-                throw new IllegalArgumentException("Only localhost is allowed for KafkaUnit");
-            }
-
-            return Integer.parseInt(hostPort[1]);
-        } catch (Exception e) {
-            throw new RuntimeException("Cannot parse connectionString " + connectionString, e);
-        }
+    @Override void setBrokerConfig() {
+        final File logDir = getLogDirectory();
+        kafkaBrokerConfig.setProperty(ZOOKEEPER_CONNECT, zookeeperUri);
+        kafkaBrokerConfig.setProperty(BROKER_ID, "1");
+        kafkaBrokerConfig.setProperty(BROKER_HOST_NAME, "localhost");
+        kafkaBrokerConfig.setProperty(BROKER_PORT, Integer.toString(brokerPort));
+        kafkaBrokerConfig.setProperty(ZOOKEEPER_LOG_DIRECTORY, logDir.getAbsolutePath());
+        kafkaBrokerConfig.setProperty(ZOOKEEPER_LOG_FLUSH_INTERVAL_MESSAGES, valueOf(1));
     }
 
-    private static int getEphemeralPort() throws IOException {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        }
+    @Override Properties getProducerConfig() {
+        Properties props = new Properties();
+        props.put(KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
+        props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
+        props.put(BOOTSTRAP_SERVERS_CONFIG, brokerString);
+        return props;
     }
 
-    public void startup() {
-        zookeeper = new Zookeeper(zkPort);
-        zookeeper.startup();
-
-        final File logDir;
-        try {
-            logDir = Files.createTempDirectory("kafka").toFile();
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to start Kafka", e);
-        }
-        logDir.deleteOnExit();
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    FileUtils.deleteDirectory(logDir);
-                } catch (IOException e) {
-                    LOGGER.warn("Problems deleting temporary directory " + logDir.getAbsolutePath(), e);
-                }
-            }
-        }));
-        kafkaBrokerConfig.setProperty("zookeeper.connect", zookeeperString);
-        kafkaBrokerConfig.setProperty("broker.id", "1");
-        kafkaBrokerConfig.setProperty("host.name", "localhost");
-        kafkaBrokerConfig.setProperty("port", Integer.toString(brokerPort));
-        kafkaBrokerConfig.setProperty("log.dir", logDir.getAbsolutePath());
-        kafkaBrokerConfig.setProperty("log.flush.interval.messages", String.valueOf(1));
-
-        broker = new KafkaServerStartable(new KafkaConfig(kafkaBrokerConfig));
-        broker.startup();
-    }
-
-    public String getKafkaConnect() {
-        return brokerString;
-    }
-
-    public int getZkPort() {
-        return zkPort;
-    }
-
-    public int getBrokerPort() {
-        return brokerPort;
-    }
-
-    public void createTopic(String topicName) {
-        createTopic(topicName, 1);
-    }
-
-    public void createTopic(String topicName, Integer numPartitions) {
-        // setup
-        String[] arguments = new String[9];
-        arguments[0] = "--create";
-        arguments[1] = "--zookeeper";
-        arguments[2] = zookeeperString;
-        arguments[3] = "--replication-factor";
-        arguments[4] = "1";
-        arguments[5] = "--partitions";
-        arguments[6] = "" + Integer.valueOf(numPartitions);
-        arguments[7] = "--topic";
-        arguments[8] = topicName;
-        TopicCommand.TopicCommandOptions opts = new TopicCommand.TopicCommandOptions(arguments);
-
-        ZkUtils zkUtils = ZkUtils.apply(opts.options().valueOf(opts.zkConnectOpt()),
-                30000, 30000, JaasUtils.isZkSecurityEnabled());
-
-        // run
-        LOGGER.info("Executing: CreateTopic " + Arrays.toString(arguments));
-        TopicCommand.createTopic(zkUtils, opts);
-    }
-
-
-    public void shutdown() {
-        if (broker != null) broker.shutdown();
-        if (zookeeper != null) zookeeper.shutdown();
-    }
-
-    public List<KeyedMessage<String, String>> readKeyedMessages(final String topicName, final int expectedMessages) throws TimeoutException {
-        return readMessages(topicName, expectedMessages, new MessageExtractor<KeyedMessage<String, String>>() {
+    public List<ProducerRecord<String, String>> readProducerRecords(final String topicName, final int expectedMessages)
+        throws TimeoutException {
+        return readMessages(topicName, expectedMessages, new MessageExtractor<ProducerRecord<String, String>>() {
 
             @Override
-            public KeyedMessage<String, String> extract(MessageAndMetadata<String, String> messageAndMetadata) {
-                return new KeyedMessage(topicName, messageAndMetadata.key(), messageAndMetadata.message());
+            public ProducerRecord<String, String> extract(MessageAndMetadata<String, String> messageAndMetadata) {
+                return new ProducerRecord<>(topicName, messageAndMetadata.key(), messageAndMetadata.message());
             }
         });
     }
@@ -200,23 +108,29 @@ public class KafkaUnit {
         });
     }
 
-    private <T> List<T> readMessages(String topicName, final int expectedMessages, final MessageExtractor<T> messageExtractor) throws TimeoutException {
+    private <T> List<T> readMessages(
+        String topicName, final int expectedMessages, final MessageExtractor<T> messageExtractor
+    ) throws TimeoutException {
         ExecutorService singleThread = Executors.newSingleThreadExecutor();
         Properties consumerProperties = new Properties();
-        consumerProperties.put("zookeeper.connect", zookeeperString);
-        consumerProperties.put("group.id", "10");
-        consumerProperties.put("socket.timeout.ms", "500");
-        consumerProperties.put("consumer.id", "test");
-        consumerProperties.put("auto.offset.reset", "smallest");
-        consumerProperties.put("consumer.timeout.ms", "500");
-        ConsumerConnector javaConsumerConnector = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumerProperties));
+        consumerProperties.put(ZOOKEEPER_CONNECT, zookeeperUri);
+        consumerProperties.put(CONSUMER_SOCKET_TIMEOUT_MS, "500");
+        consumerProperties.put(CONSUMER_ID, "test");
+        consumerProperties.put(CONSUMER_TIMEOUT_MS, "500");
+        consumerProperties.put(BOOTSTRAP_SERVERS_CONFIG, brokerString);
+        consumerProperties.put(GROUP_ID_CONFIG, "10");
+        consumerProperties.put(AUTO_OFFSET_RESET_CONFIG, "smallest");
+        ConsumerConnector javaConsumerConnector = Consumer.createJavaConsumerConnector(new ConsumerConfig(
+            consumerProperties));
         StringDecoder stringDecoder = new StringDecoder(new VerifiableProperties(new Properties()));
         Map<String, Integer> topicMap = new HashMap<>();
         topicMap.put(topicName, 1);
-        Map<String, List<KafkaStream<String, String>>> events = javaConsumerConnector.createMessageStreams(topicMap, stringDecoder, stringDecoder);
+        Map<String, List<KafkaStream<String, String>>> events = javaConsumerConnector.createMessageStreams(topicMap,
+            stringDecoder,
+            stringDecoder
+        );
         List<KafkaStream<String, String>> events1 = events.get(topicName);
         final KafkaStream<String, String> kafkaStreams = events1.get(0);
-
 
         Future<List<T>> submit = singleThread.submit(new Callable<List<T>>() {
             public List<T> call() throws Exception {
@@ -231,8 +145,10 @@ public class KafkaUnit {
                     // always gets throws reaching the end of the stream
                 }
                 if (messages.size() != expectedMessages) {
-                    throw new ComparisonFailure("Incorrect number of messages returned", Integer.toString(expectedMessages),
-                            Integer.toString(messages.size()));
+                    throw new ComparisonFailure("Incorrect number of messages returned",
+                        Integer.toString(expectedMessages),
+                        Integer.toString(messages.size())
+                    );
                 }
                 return messages;
             }
@@ -251,29 +167,7 @@ public class KafkaUnit {
         }
     }
 
-    @SafeVarargs
-    public final void sendMessages(KeyedMessage<String, String> message, KeyedMessage<String, String>... messages) {
-        if (producer == null) {
-            Properties props = new Properties();
-            props.put("serializer.class", StringEncoder.class.getName());
-            props.put("metadata.broker.list", brokerString);
-            ProducerConfig config = new ProducerConfig(props);
-            producer = new Producer<>(config);
-        }
-        producer.send(message);
-        producer.send(Arrays.asList(messages));
-    }
-
-    /**
-     * Set custom broker configuration.
-     * See avaliable config keys in the kafka documentation: http://kafka.apache.org/documentation.html#brokerconfigs
-     */
-    public final void setKafkaBrokerConfig(String configKey, String configValue) {
-        kafkaBrokerConfig.setProperty(configKey, configValue);
-    }
-
     private interface MessageExtractor<T> {
         T extract(MessageAndMetadata<String, String> messageAndMetadata);
     }
 }
-

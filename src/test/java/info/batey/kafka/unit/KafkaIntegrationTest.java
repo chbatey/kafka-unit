@@ -15,7 +15,6 @@
  */
 package info.batey.kafka.unit;
 
-import kafka.producer.KeyedMessage;
 import kafka.server.KafkaServerStartable;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -34,7 +33,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class KafkaIntegrationTest {
 
@@ -49,11 +49,10 @@ public class KafkaIntegrationTest {
 
     @After
     public void shutdown() throws Exception {
-        Field f = kafkaUnitServer.getClass().getDeclaredField("broker");
+        Field f = kafkaUnitServer.getClass().getSuperclass().getDeclaredField("broker");
         f.setAccessible(true);
         KafkaServerStartable broker = (KafkaServerStartable) f.get(kafkaUnitServer);
         assertEquals(1024, (int)broker.serverConfig().logSegmentBytes());
-
         kafkaUnitServer.shutdown();
     }
 
@@ -67,10 +66,10 @@ public class KafkaIntegrationTest {
         //given
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
-        kafkaUnitServer.sendMessages(keyedMessage);
+        kafkaUnitServer.sendMessages(producerRecord);
 
         try {
             kafkaUnitServer.readMessages(testTopic, 2);
@@ -82,16 +81,7 @@ public class KafkaIntegrationTest {
         }
     }
 
-    @Test
-    public void startKafkaServerWithoutParamsAndSendMessage() throws Exception {
-        KafkaUnit noParamServer = new KafkaUnit();
-        noParamServer.startup();
-        assertKafkaServerIsAvailable(noParamServer);
-        assertTrue("Kafka port needs to be non-negative", noParamServer.getBrokerPort() > 0);
-        assertTrue("Zookeeper port needs to be non-negative", noParamServer.getZkPort() > 0);
-    }
-
-    @Test
+     @Test
     public void canUseKafkaConnectToProduce() throws Exception {
         final String topic = "KafkakConnectTestTopic";
         Properties props = new Properties();
@@ -105,18 +95,18 @@ public class KafkaIntegrationTest {
     }
 
     @Test
-    public void  canReadKeyedMessages() throws Exception {
+    public void canReadProducerRecords() throws Exception {
         //given
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
-        kafkaUnitServer.sendMessages(keyedMessage);
+        kafkaUnitServer.sendMessages(producerRecord);
 
-        KeyedMessage<String, String> receivedMessage = kafkaUnitServer.readKeyedMessages(testTopic, 1).get(0);
+        ProducerRecord<String, String> receivedMessage = kafkaUnitServer.readProducerRecords(testTopic, 1).get(0);
 
-        assertEquals("Received message value is incorrect", "value", receivedMessage.message());
+        assertEquals("Received message value is incorrect", "value", receivedMessage.value());
         assertEquals("Received message key is incorrect", "key", receivedMessage.key());
         assertEquals("Received message topic is incorrect", testTopic, receivedMessage.topic());
     }
@@ -125,13 +115,15 @@ public class KafkaIntegrationTest {
         //given
         String testTopic = "TestTopic";
         server.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
-        server.sendMessages(keyedMessage);
+        server.sendMessages(producerRecord);
         List<String> messages = server.readMessages(testTopic, 1);
 
         //then
         assertEquals(Arrays.asList("value"), messages);
     }
+
+
 }

@@ -15,7 +15,8 @@
  */
 package info.batey.kafka.unit;
 
-import kafka.producer.KeyedMessage;
+import info.batey.kafka.unit.rules.KafkaUnitRule;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -32,9 +33,6 @@ public class KafkaUnitIntegrationTest {
     @Rule
     public KafkaUnitRule kafkaUnitRuleWithConnectionStrings = new KafkaUnitRule("localhost:5000", "localhost:5001");
 
-    @Rule
-    public KafkaUnitRule kafkaUnitRuleWithEphemeralPorts = new KafkaUnitRule();
-
     @Test
     public void junitRuleShouldHaveStartedKafka() throws Exception {
         assertKafkaStartsAndSendsMessage(kafkaUnitRule.getKafkaUnit());
@@ -45,19 +43,14 @@ public class KafkaUnitIntegrationTest {
         assertKafkaStartsAndSendsMessage(kafkaUnitRuleWithConnectionStrings.getKafkaUnit());
     }
 
-    @Test
-    public void junitRuleShouldHaveStartedKafkaWithEphemeralPorts() throws Exception {
-        assertKafkaStartsAndSendsMessage(kafkaUnitRuleWithEphemeralPorts.getKafkaUnit());
-    }
-
     public void assertKafkaStartsAndSendsMessage(final KafkaUnit kafkaUnit) throws Exception {
         //given
         String testTopic = "TestTopic";
         kafkaUnit.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
-        kafkaUnitRule.getKafkaUnit().sendMessages(keyedMessage);
+        kafkaUnitRule.getKafkaUnit().sendMessages(producerRecord);
         List<String> messages = kafkaUnitRule.getKafkaUnit().readMessages(testTopic, 1);
 
         //then

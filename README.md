@@ -51,8 +51,8 @@ You can then write your own code to interact with Kafka or use the following met
 
 ```java
 kafkaUnitServer.createTopic(testTopic);
-KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
-kafkaUnitServer.sendMessages(keyedMessage);
+ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
+kafkaUnitServer.sendMessages(producerRecord);
 ```
 
 And to read messages:
@@ -88,9 +88,9 @@ public class KafkaUnitIntegrationTest {
     public void junitRuleShouldHaveStartedKafka() throws Exception {
         String testTopic = "TestTopic";
         kafkaUnitRule.getKafkaUnit().createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
 
-        kafkaUnitRule.getKafkaUnit().sendMessages(keyedMessage);
+        kafkaUnitRule.getKafkaUnit().sendMessages(producerRecord);
         List<String> messages = kafkaUnitRule.getKafkaUnit().readMessages(testTopic, 1);
 
         assertEquals(Arrays.asList("value"), messages);
