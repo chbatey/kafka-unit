@@ -109,23 +109,7 @@ public class KafkaUnit {
         zookeeper = new Zookeeper(zkPort);
         zookeeper.startup();
 
-        final File logDir;
-        try {
-            logDir = Files.createTempDirectory("kafka").toFile();
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to start Kafka", e);
-        }
-        logDir.deleteOnExit();
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    FileUtils.deleteDirectory(logDir);
-                } catch (IOException e) {
-                    LOGGER.warn("Problems deleting temporary directory " + logDir.getAbsolutePath(), e);
-                }
-            }
-        }));
+        final File logDir = LogDirUtil.prepareLogDir("kafka");
         kafkaBrokerConfig.setProperty("zookeeper.connect", zookeeperString);
         kafkaBrokerConfig.setProperty("broker.id", "1");
         kafkaBrokerConfig.setProperty("host.name", "localhost");

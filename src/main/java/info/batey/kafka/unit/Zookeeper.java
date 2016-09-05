@@ -34,17 +34,8 @@ public class Zookeeper {
 
     public void startup() {
 
-        File snapshotDir;
-        File logDir;
-        try {
-            snapshotDir = java.nio.file.Files.createTempDirectory("zookeeper-snapshot").toFile();
-            logDir = java.nio.file.Files.createTempDirectory("zookeeper-logs").toFile();
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to start Kafka", e);
-        }
-
-        snapshotDir.deleteOnExit();
-        logDir.deleteOnExit();
+        File snapshotDir = LogDirUtil.prepareLogDir("zookeeper-snapshot");
+        File logDir = LogDirUtil.prepareLogDir("zookeeper-logs");
 
         try {
             int tickTime = 500;
