@@ -183,7 +183,11 @@ public class KafkaUnit {
 
         // run
         LOGGER.info("Executing: CreateTopic " + Arrays.toString(arguments));
-        TopicCommand.createTopic(zkUtils, opts);
+        try
+        {
+            TopicCommand.createTopic(zkUtils, opts);
+        } catch (TopicExistsException e) {
+        }
     }
 
 
