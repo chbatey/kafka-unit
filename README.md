@@ -7,7 +7,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
 ## Versions
 | kafka-unit | Kafka broker            | Zookeeper |
 |------------|-------------------------|-----------|
-| 0.7        | kafka_2.11:0.10.1.0     | 3.4.6     |
+| 0.7        | kafka_2.11:0.10.1.1     | 3.4.6     |
 | 0.6        | kafka_2.11:0.10.0.0     | 3.4.6     |
 | 0.5        | kafka_2.11:0.9.0.1      | 3.4.6     |
 | 0.4        | kafka_2.11:0.9.0.1      | 3.4.6     |
@@ -20,7 +20,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
 <dependency>
     <groupId>info.batey.kafka</groupId>
     <artifactId>kafka-unit</artifactId>
-    <version>0.6</version>
+    <version>0.7</version>
 </dependency>
 ```
 
@@ -52,8 +52,8 @@ You can then write your own code to interact with Kafka or use the following met
 
 ```java
 kafkaUnitServer.createTopic(testTopic);
-KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
-kafkaUnitServer.sendMessages(keyedMessage);
+ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
+kafkaUnitServer.sendRecord(producerRecord);
 ```
 
 And to read messages:
@@ -89,9 +89,9 @@ public class KafkaUnitIntegrationTest {
     public void junitRuleShouldHaveStartedKafka() throws Exception {
         String testTopic = "TestTopic";
         kafkaUnitRule.getKafkaUnit().createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
 
-        kafkaUnitRule.getKafkaUnit().sendMessages(keyedMessage);
+        kafkaUnitRule.getKafkaUnit().sendRecords(producerRecord);
         List<String> messages = kafkaUnitRule.getKafkaUnit().readMessages(testTopic, 1);
 
         assertEquals(Arrays.asList("value"), messages);
