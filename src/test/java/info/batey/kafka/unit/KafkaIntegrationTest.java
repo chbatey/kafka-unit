@@ -15,8 +15,8 @@
  */
 package info.batey.kafka.unit;
 
-import kafka.producer.KeyedMessage;
 import kafka.server.KafkaServerStartable;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -34,7 +34,9 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class KafkaIntegrationTest {
 
@@ -67,10 +69,10 @@ public class KafkaIntegrationTest {
         //given
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
-        kafkaUnitServer.sendMessages(keyedMessage);
+        kafkaUnitServer.sendRecords(producerRecord);
 
         try {
             kafkaUnitServer.readMessages(testTopic, 2);
@@ -109,26 +111,27 @@ public class KafkaIntegrationTest {
         //given
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
-        kafkaUnitServer.sendMessages(keyedMessage);
+        kafkaUnitServer.sendRecords(producerRecord);
 
-        KeyedMessage<String, String> receivedMessage = kafkaUnitServer.readKeyedMessages(testTopic, 1).get(0);
+        ConsumerRecord<String, String> receivedConsumerRecord = kafkaUnitServer
+                .readConsumerRecords(testTopic, 1).get(0);
 
-        assertEquals("Received message value is incorrect", "value", receivedMessage.message());
-        assertEquals("Received message key is incorrect", "key", receivedMessage.key());
-        assertEquals("Received message topic is incorrect", testTopic, receivedMessage.topic());
+        assertEquals("Received message value is incorrect", "value", receivedConsumerRecord.value());
+        assertEquals("Received message key is incorrect", "key", receivedConsumerRecord.key());
+        assertEquals("Received message topic is incorrect", testTopic, receivedConsumerRecord.topic());
     }
 
     private void assertKafkaServerIsAvailable(KafkaUnit server) throws TimeoutException {
         //given
         String testTopic = "TestTopic";
         server.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
-        server.sendMessages(keyedMessage);
+        server.sendRecords(producerRecord);
         List<String> messages = server.readMessages(testTopic, 1);
 
         //then
