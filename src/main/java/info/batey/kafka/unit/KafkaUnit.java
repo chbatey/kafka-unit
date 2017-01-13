@@ -200,6 +200,15 @@ public class KafkaUnit {
         });
     }
 
+    public List<String> pollMessages(String topicName) throws TimeoutException {
+        return readMessages(topicName, -1, new MessageExtractor<String>() {
+            @Override
+            public String extract(MessageAndMetadata<String, String> messageAndMetadata) {
+                return messageAndMetadata.message();
+            }
+        });
+    }
+
     private <T> List<T> readMessages(String topicName, final int expectedMessages, final MessageExtractor<T> messageExtractor) throws TimeoutException {
         ExecutorService singleThread = Executors.newSingleThreadExecutor();
         Properties consumerProperties = new Properties();
@@ -230,7 +239,7 @@ public class KafkaUnit {
                 } catch (ConsumerTimeoutException e) {
                     // always gets throws reaching the end of the stream
                 }
-                if (messages.size() != expectedMessages) {
+                if (expectedMessages >= 0 && messages.size() != expectedMessages) {
                     throw new ComparisonFailure("Incorrect number of messages returned", Integer.toString(expectedMessages),
                             Integer.toString(messages.size()));
                 }
