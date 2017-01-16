@@ -74,6 +74,32 @@ props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaUnitServer.getKafkaConne
 Producer<Long, String> producer = new KafkaProducer<>(props);
 ```
 
+## Starting KafkaConnect
+
+Create maps representing your worker (i.e. how to connect to kafka) and connector
+properties (i.e. your kafka connector itself) and pass them as parameters into
+your KafkaConnect constructor.
+
+```java
+Map<String, String> workerProperties = new HashMap<>();
+workerProperties.put("bootstrap.servers", kafkaUnit.getKafkaConnect());
+workerProperties.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
+workerProperties.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
+workerProperties.put("internal.key.converter", "org.apache.kafka.connect.storage.StringConverter");
+workerProperties.put("internal.value.converter", "org.apache.kafka.connect.storage.StringConverter");
+workerProperties.put("offset.storage.file.filename", offsetFile.getAbsolutePath());
+
+Map<String, String> connectorProperties = new HashMap<>();
+connectorProperties.put("name", "TestSync");
+connectorProperties.put("connector.class", "info.batey.kafka.unit.TestSink.TestSinkConnector");
+connectorProperties.put("topics", "test");
+connectorProperties.put("max.tasks", "1");
+connectorProperties.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
+connectorProperties.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
+
+KafkaConnect kc = new KafkaConnect(workerProperties, connectorProperties);
+```
+
 ## Using the JUnit Rule
 
 If you don't want to start/stop the server manually, you can use the JUnit rule, e.g.
@@ -98,7 +124,7 @@ public class KafkaUnitIntegrationTest {
 }
 ```
 
-This will start/stop the broker every test, so that particular test can't interfere with the next. 
+This will start/stop the broker every test, so that particular test can't interfere with the next.
 Contrary to `KafkaUnit()` constructor, it does not throw checked `IOException` when socket initialization fails, but wraps it in runtime exception and thus is suitable for use as `@Rule` field in tests.
 
 If you want to start server on specific ports, use `KafkaUnitRule(int, int)` or `KafkaUnitRule(String, String)` constructor, which accepts ZooKeeper and Kafka broker ports or connection strings respectively (just like corresponding `KafkaUnit` constructors), e.g.:
@@ -125,4 +151,3 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ```
-
