@@ -169,10 +169,14 @@ public class KafkaUnit {
 
         ZkUtils zkUtils = ZkUtils.apply(opts.options().valueOf(opts.zkConnectOpt()),
                 30000, 30000, JaasUtils.isZkSecurityEnabled());
+        try{
+            // run
+            LOGGER.info("Executing: CreateTopic " + Arrays.toString(arguments));
+            TopicCommand.createTopic(zkUtils, opts);
+        } finally {
+            zkUtils.close();
+        }
 
-        // run
-        LOGGER.info("Executing: CreateTopic " + Arrays.toString(arguments));
-        TopicCommand.createTopic(zkUtils, opts);
     }
 
 

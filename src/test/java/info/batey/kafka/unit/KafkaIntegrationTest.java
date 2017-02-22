@@ -15,6 +15,14 @@
  */
 package info.batey.kafka.unit;
 
+import static org.junit.Assert.*;
+
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.TimeoutException;
+
 import kafka.producer.KeyedMessage;
 import kafka.server.KafkaServerStartable;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -27,14 +35,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.ComparisonFailure;
 import org.junit.Test;
-
-import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.TimeoutException;
-
-import static org.junit.Assert.*;
 
 public class KafkaIntegrationTest {
 
@@ -119,6 +119,14 @@ public class KafkaIntegrationTest {
         assertEquals("Received message value is incorrect", "value", receivedMessage.message());
         assertEquals("Received message key is incorrect", "key", receivedMessage.key());
         assertEquals("Received message topic is incorrect", testTopic, receivedMessage.topic());
+    }
+
+    @Test(timeout = 30000)
+    public void closeConnectionBetweenTopicCreations() throws Exception{
+        String topicPrefix = "TestTopic";
+        for(int i = 0; i < 17; i++){
+            kafkaUnitServer.createTopic(topicPrefix + i);
+        }
     }
 
     private void assertKafkaServerIsAvailable(KafkaUnit server) throws TimeoutException {
