@@ -38,6 +38,14 @@ public class KafkaUnitRule extends ExternalResource {
     public KafkaUnitRule(String zkConnectionString, String kafkaConnectionString) {
         this.kafkaUnit = new KafkaUnit(zkConnectionString, kafkaConnectionString);
     }
+    
+    public KafkaUnitRule(int zkPort, int kafkaPort, int zkMaxConnections) {
+        this.kafkaUnit = new KafkaUnit(zkPort, kafkaPort, zkMaxConnections);
+    }
+
+    public KafkaUnitRule(String zkConnectionString, String kafkaConnectionString, int zkMaxConnections) {
+        this.kafkaUnit = new KafkaUnit(zkConnectionString, kafkaConnectionString, zkMaxConnections);
+    }
 
     @Override
     protected void before() throws Throwable {

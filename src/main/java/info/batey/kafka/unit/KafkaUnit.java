@@ -59,20 +59,30 @@ public class KafkaUnit {
     private int brokerPort;
     private Producer<String, String> producer = null;
     private Properties kafkaBrokerConfig = new Properties();
+    private int zkMaxConnections;
 
     public KafkaUnit() throws IOException {
         this(getEphemeralPort(), getEphemeralPort());
     }
 
     public KafkaUnit(int zkPort, int brokerPort) {
+        this(zkPort, brokerPort, 16);
+    }
+    
+    public KafkaUnit(int zkPort, int brokerPort, int zkMaxConnections) {
         this.zkPort = zkPort;
         this.brokerPort = brokerPort;
         this.zookeeperString = "localhost:" + zkPort;
         this.brokerString = "localhost:" + brokerPort;
+        this.zkMaxConnections = zkMaxConnections;
     }
 
     public KafkaUnit(String zkConnectionString, String kafkaConnectionString) {
         this(parseConnectionString(zkConnectionString), parseConnectionString(kafkaConnectionString));
+    }
+    
+    public KafkaUnit(String zkConnectionString, String kafkaConnectionString, int zkMaxConnections) {
+        this(parseConnectionString(zkConnectionString), parseConnectionString(kafkaConnectionString), zkMaxConnections);
     }
 
     private static int parseConnectionString(String connectionString) {
@@ -106,7 +116,7 @@ public class KafkaUnit {
     }
 
     public void startup() {
-        zookeeper = new Zookeeper(zkPort);
+        zookeeper = new Zookeeper(zkPort, zkMaxConnections);
         zookeeper.startup();
 
         final File logDir;
