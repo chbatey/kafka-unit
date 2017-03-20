@@ -283,8 +283,9 @@ public class KafkaUnit {
             partitionToBrokerReplicaAssignment.put(new TopicAndPartition(topicName, partition), brokers);
         }
 
-        ReassignPartitionsCommand command = new ReassignPartitionsCommand(zkUtils, JavaConversions.mapAsScalaMap(partitionToBrokerReplicaAssignment));
-        if (!command.reassignPartitions()) {
+        scala.collection.Map<TopicAndPartition, Seq<Object>> topicAndPartitionSeqMap = JavaConversions.mapAsScalaMap(partitionToBrokerReplicaAssignment);
+        ReassignPartitionsCommand command = new ReassignPartitionsCommand(zkUtils, topicAndPartitionSeqMap, AdminUtils$.MODULE$);
+        if (!command.reassignPartitions(-1)) {
             throw new RuntimeException("Reassign failed");
         }
     }
