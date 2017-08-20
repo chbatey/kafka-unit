@@ -25,11 +25,18 @@ import java.net.InetSocketAddress;
 
 public class Zookeeper {
     private int port;
+    private int maxConnections;
 
     private ServerCnxnFactory factory;
 
     public Zookeeper(int port) {
         this.port = port;
+        this.maxConnections = 16;
+    }
+    
+    public Zookeeper(int port, int maxConnections) {
+        this.port = port;
+        this.maxConnections = maxConnections;
     }
 
     public void startup() {
@@ -50,7 +57,7 @@ public class Zookeeper {
             int tickTime = 500;
             ZooKeeperServer zkServer = new ZooKeeperServer(snapshotDir, logDir, tickTime);
             this.factory = NIOServerCnxnFactory.createFactory();
-            this.factory.configure(new InetSocketAddress("localhost", port), 16);
+            this.factory.configure(new InetSocketAddress("localhost", port), maxConnections);
             factory.startup(zkServer);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
