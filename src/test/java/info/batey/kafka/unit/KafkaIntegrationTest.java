@@ -83,6 +83,51 @@ public class KafkaIntegrationTest {
     }
 
     @Test
+    public void canDeleteTopic() throws Exception{
+        //given
+        String testTopic = "TestTopic";
+        kafkaUnitServer.createTopic(testTopic);
+        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+
+        //when
+        kafkaUnitServer.sendMessages(keyedMessage);
+        kafkaUnitServer.readMessages(testTopic, 1);
+
+        kafkaUnitServer.deleteTopic(testTopic);
+        kafkaUnitServer.readMessages(testTopic, 0);
+    }
+
+    @Test
+    public void canListTopics() throws Exception{
+        String testTopic1 = "TestTopic1";
+        kafkaUnitServer.createTopic(testTopic1);
+        String testTopic2 = "TestTopic2";
+        kafkaUnitServer.createTopic(testTopic2);
+
+        List<String> topics = kafkaUnitServer.listTopics();
+        assertEquals(2, topics.size());
+        assertTrue(topics.contains(testTopic1));
+        assertTrue(topics.contains(testTopic2));
+    }
+
+    @Test
+    public void canDeleteAllTopics(){
+        String testTopic1 = "TestTopic1";
+        kafkaUnitServer.createTopic(testTopic1);
+        String testTopic2 = "TestTopic2";
+        kafkaUnitServer.createTopic(testTopic2);
+
+        List<String> topics = kafkaUnitServer.listTopics();
+        assertTrue(topics.contains(testTopic1));
+        assertTrue(topics.contains(testTopic2));
+
+        kafkaUnitServer.deleteAllTopics();
+        topics = kafkaUnitServer.listTopics();
+        assertFalse(topics.contains(testTopic1));
+        assertFalse(topics.contains(testTopic2));
+    }
+
+    @Test
     public void startKafkaServerWithoutParamsAndSendMessage() throws Exception {
         KafkaUnit noParamServer = new KafkaUnit();
         noParamServer.startup();

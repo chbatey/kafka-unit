@@ -38,13 +38,16 @@ import org.apache.kafka.common.security.JaasUtils;
 import org.junit.ComparisonFailure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Console;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class KafkaUnit {
 
@@ -142,6 +145,7 @@ public class KafkaUnit {
         kafkaBrokerConfig.setProperty("port", Integer.toString(brokerPort));
         kafkaBrokerConfig.setProperty("log.dir", logDir.getAbsolutePath());
         kafkaBrokerConfig.setProperty("log.flush.interval.messages", String.valueOf(1));
+        kafkaBrokerConfig.setProperty("delete.topic.enable", String.valueOf(true));
 
         broker = new KafkaServerStartable(new KafkaConfig(kafkaBrokerConfig));
         broker.startup();
@@ -189,6 +193,79 @@ public class KafkaUnit {
 
     }
 
+    /**
+     * @return All topic names
+     */
+    public List<String> listTopics(){
+        String[] arguments = new String[3];
+        arguments[0] = "--zookeeper";
+        arguments[1] = zookeeperString;
+        arguments[2] = "--list";
+        TopicCommand.TopicCommandOptions opts = new TopicCommand.TopicCommandOptions(arguments);
+
+        ZkUtils zkUtils = ZkUtils.apply(opts.options().valueOf(opts.zkConnectOpt()),
+                30000, 30000, JaasUtils.isZkSecurityEnabled());
+        final List<String> topics = new ArrayList<>();
+        try{
+            // run
+            LOGGER.info("Executing: ListTopics " + Arrays.toString(arguments));
+
+            PrintStream oldOut = Console.out();
+            try{
+                Console.setOut(new PrintStream(oldOut){
+                    @Override
+                    public void print(String s) {
+                        super.print(s);
+                        if(!s.endsWith("marked for deletion")){
+                            topics.add(s);
+                        }
+                    }
+                });
+                TopicCommand.listTopics(zkUtils, opts);
+            } finally {
+                Console.setOut(oldOut);
+            }
+        } finally {
+            zkUtils.close();
+        }
+
+        return topics;
+    }
+
+    /**
+     * Delete all topics
+     */
+    public void deleteAllTopics(){
+        for (String topic: listTopics()){
+            try{
+                deleteTopic(topic);
+            } catch (Throwable ignored){}
+        }
+    }
+
+    /**
+     * Delete a topic.
+     * @param topicName The name of the topic to delete
+     */
+    public void deleteTopic(String topicName){
+        String[] arguments = new String[5];
+        arguments[0] = "--zookeeper";
+        arguments[1] = zookeeperString;
+        arguments[2] = "--delete";
+        arguments[3] = "--topic";
+        arguments[4] = topicName;
+        TopicCommand.TopicCommandOptions opts = new TopicCommand.TopicCommandOptions(arguments);
+
+        ZkUtils zkUtils = ZkUtils.apply(opts.options().valueOf(opts.zkConnectOpt()),
+                30000, 30000, JaasUtils.isZkSecurityEnabled());
+        try{
+            // run
+            LOGGER.info("Executing: DeleteTopic " + Arrays.toString(arguments));
+            TopicCommand.deleteTopic(zkUtils, opts);
+        } finally {
+            zkUtils.close();
+        }
+    }
 
     public void shutdown() {
         if (broker != null) broker.shutdown();
