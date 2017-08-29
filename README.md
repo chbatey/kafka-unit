@@ -7,6 +7,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
 ## Versions
 | kafka-unit | Kafka broker            | Zookeeper |
 |------------|-------------------------|-----------|
+| 0.7        | kafka_2.11:0.10.0.2     | 3.4.10    |
 | 0.6        | kafka_2.11:0.10.0.0     | 3.4.6     |
 | 0.5        | kafka_2.11:0.9.0.1      | 3.4.6     |
 | 0.4        | kafka_2.11:0.9.0.1      | 3.4.6     |
@@ -19,7 +20,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
 <dependency>
     <groupId>info.batey.kafka</groupId>
     <artifactId>kafka-unit</artifactId>
-    <version>0.6</version>
+    <version>0.7</version>
 </dependency>
 ```
 
