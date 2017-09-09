@@ -71,7 +71,7 @@ public class KafkaUnit {
     public KafkaUnit(int zkPort, int brokerPort) {
         this(zkPort, brokerPort, 16);
     }
-    
+
     public KafkaUnit(int zkPort, int brokerPort, int zkMaxConnections) {
         this.zkPort = zkPort;
         this.brokerPort = brokerPort;
@@ -83,7 +83,7 @@ public class KafkaUnit {
     public KafkaUnit(String zkConnectionString, String kafkaConnectionString) {
         this(parseConnectionString(zkConnectionString), parseConnectionString(kafkaConnectionString));
     }
-    
+
     public KafkaUnit(String zkConnectionString, String kafkaConnectionString, int zkMaxConnections) {
         this(parseConnectionString(zkConnectionString), parseConnectionString(kafkaConnectionString), zkMaxConnections);
     }
@@ -146,6 +146,7 @@ public class KafkaUnit {
         kafkaBrokerConfig.setProperty("log.dir", logDir.getAbsolutePath());
         kafkaBrokerConfig.setProperty("log.flush.interval.messages", String.valueOf(1));
         kafkaBrokerConfig.setProperty("delete.topic.enable", String.valueOf(true));
+        kafkaBrokerConfig.setProperty("offsets.topic.replication.factor", String.valueOf(1));
 
         broker = new KafkaServerStartable(new KafkaConfig(kafkaBrokerConfig));
         broker.startup();
