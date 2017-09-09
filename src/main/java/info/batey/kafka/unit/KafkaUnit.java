@@ -49,7 +49,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-public class KafkaUnit {
+public class KafkaUnit<K, V> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUnit.class);
 
@@ -60,7 +60,7 @@ public class KafkaUnit {
     private final String brokerString;
     private int zkPort;
     private int brokerPort;
-    private Producer<String, String> producer = null;
+    private Producer<K, V> producer = null;
     private Properties kafkaBrokerConfig = new Properties();
     private int zkMaxConnections;
 
@@ -353,7 +353,7 @@ public class KafkaUnit {
     }
 
     @SafeVarargs
-    public final void sendMessages(KeyedMessage<String, String> message, KeyedMessage<String, String>... messages) {
+    public final void sendMessages(KeyedMessage<K, V> message, KeyedMessage<K, V>... messages) {
         if (producer == null) {
             Properties props = new Properties();
             props.put("serializer.class", StringEncoder.class.getName());

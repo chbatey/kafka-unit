@@ -38,7 +38,7 @@ import org.junit.Test;
 
 public class KafkaIntegrationTest {
 
-    private KafkaUnit kafkaUnitServer;
+    private KafkaUnit<String, String> kafkaUnitServer;
 
     @Before
     public void setUp() throws Exception {
