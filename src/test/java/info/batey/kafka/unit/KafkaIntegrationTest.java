@@ -15,16 +15,16 @@
  */
 package info.batey.kafka.unit;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Field;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeoutException;
-
-import kafka.producer.KeyedMessage;
 import kafka.server.KafkaServerStartable;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -33,7 +33,6 @@ import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.ComparisonFailure;
 import org.junit.Test;
 
 public class KafkaIntegrationTest {
@@ -52,8 +51,8 @@ public class KafkaIntegrationTest {
         Field f = kafkaUnitServer.getClass().getDeclaredField("broker");
         f.setAccessible(true);
         KafkaServerStartable broker = (KafkaServerStartable) f.get(kafkaUnitServer);
-        assertEquals(1024, (int)broker.serverConfig().logSegmentBytes());
-
+        assertEquals(1024, (int) broker.serverConfig().logSegmentBytes());
+        kafkaUnitServer.deleteAllTopics();
         kafkaUnitServer.shutdown();
     }
 
@@ -62,43 +61,24 @@ public class KafkaIntegrationTest {
         assertKafkaServerIsAvailable(kafkaUnitServer);
     }
 
-    @Test(expected = ComparisonFailure.class)
-    public void shouldThrowComparisonFailureIfMoreMessagesRequestedThanSent() throws Exception {
-        //given
-        String testTopic = "TestTopic";
-        kafkaUnitServer.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
-
-        //when
-        kafkaUnitServer.sendMessages(keyedMessage);
-
-        try {
-            kafkaUnitServer.readMessages(testTopic, 2);
-            fail("Expected ComparisonFailure to be thrown");
-        } catch (ComparisonFailure e) {
-            assertEquals("Wrong value for 'expected'", "2", e.getExpected());
-            assertEquals("Wrong value for 'actual'", "1", e.getActual());
-            assertEquals("Wrong error message", "Incorrect number of messages returned", e.getMessage());
-        }
-    }
-
     @Test
-    public void canDeleteTopic() throws Exception{
+    public void canDeleteTopic() throws Exception {
         //given
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic,
+            "key",
+            "value");
 
         //when
         kafkaUnitServer.sendMessages(keyedMessage);
-        kafkaUnitServer.readMessages(testTopic, 1);
-
+        assertEquals(kafkaUnitServer.readAllMessages(testTopic), Collections.singletonList("value"));
         kafkaUnitServer.deleteTopic(testTopic);
-        kafkaUnitServer.readMessages(testTopic, 0);
+        assertEquals(kafkaUnitServer.readAllMessages(testTopic), Collections.<String>emptyList());
     }
 
     @Test
-    public void canListTopics() throws Exception{
+    public void canListTopics() throws Exception {
         String testTopic1 = "TestTopic1";
         kafkaUnitServer.createTopic(testTopic1);
         String testTopic2 = "TestTopic2";
@@ -111,7 +91,7 @@ public class KafkaIntegrationTest {
     }
 
     @Test
-    public void canDeleteAllTopics(){
+    public void canDeleteAllTopics() {
         String testTopic1 = "TestTopic1";
         kafkaUnitServer.createTopic(testTopic1);
         String testTopic2 = "TestTopic2";
@@ -138,7 +118,7 @@ public class KafkaIntegrationTest {
 
     @Test
     public void canUseKafkaConnectToProduce() throws Exception {
-        final String topic = "KafkakConnectTestTopic";
+        final String topic = "KafkaConnectTestTopic";
         Properties props = new Properties();
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getCanonicalName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
@@ -150,18 +130,20 @@ public class KafkaIntegrationTest {
     }
 
     @Test
-    public void  canReadKeyedMessages() throws Exception {
+    public void canReadRecords() throws Exception {
         //given
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic,
+            "key",
+            "value");
 
         //when
         kafkaUnitServer.sendMessages(keyedMessage);
 
-        KeyedMessage<String, String> receivedMessage = kafkaUnitServer.readKeyedMessages(testTopic, 1).get(0);
+        ConsumerRecord<String, String> receivedMessage = kafkaUnitServer.readRecords(testTopic, 1).get(0);
 
-        assertEquals("Received message value is incorrect", "value", receivedMessage.message());
+        assertEquals("Received message value is incorrect", "value", receivedMessage.value());
         assertEquals("Received message key is incorrect", "key", receivedMessage.key());
         assertEquals("Received message topic is incorrect", testTopic, receivedMessage.topic());
     }
@@ -174,17 +156,17 @@ public class KafkaIntegrationTest {
         }
     }
 
-    private void assertKafkaServerIsAvailable(KafkaUnit server) throws TimeoutException {
+    private void assertKafkaServerIsAvailable(KafkaUnit server) {
         //given
         String testTopic = "TestTopic";
         server.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
-
+        ProducerRecord<String, String> message = new ProducerRecord<>(testTopic,
+            "key",
+            "value");
         //when
-        server.sendMessages(keyedMessage);
+        server.sendMessages(message);
         List<String> messages = server.readMessages(testTopic, 1);
-
         //then
-        assertEquals(Arrays.asList("value"), messages);
+        assertEquals(Collections.singletonList("value"), messages);
     }
 }

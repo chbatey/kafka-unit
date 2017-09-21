@@ -15,7 +15,9 @@
  */
 package info.batey.kafka.unit;
 
+import java.util.Collections;
 import kafka.producer.KeyedMessage;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -54,14 +56,16 @@ public class KafkaUnitIntegrationTest {
         //given
         String testTopic = "TestTopic";
         kafkaUnit.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic,
+            "key",
+            "value");
 
         //when
         kafkaUnitRule.getKafkaUnit().sendMessages(keyedMessage);
         List<String> messages = kafkaUnitRule.getKafkaUnit().readMessages(testTopic, 1);
 
         //then
-        assertEquals(Arrays.asList("value"), messages);
+        assertEquals(Collections.singletonList("value"), messages);
 
     }
 }
