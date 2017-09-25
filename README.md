@@ -7,6 +7,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
 ## Versions
 | kafka-unit | Kafka broker            | Zookeeper |
 |------------|-------------------------|-----------|
+| 1.0        | kafka_2.11:0.11.0.0     | 3.4.10    |
 | 0.7        | kafka_2.11:0.10.0.2     | 3.4.10    |
 | 0.6        | kafka_2.11:0.10.0.0     | 3.4.6     |
 | 0.5        | kafka_2.11:0.9.0.1      | 3.4.6     |
@@ -20,7 +21,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
 <dependency>
     <groupId>info.batey.kafka</groupId>
     <artifactId>kafka-unit</artifactId>
-    <version>0.7</version>
+    <version>1.0</version>
 </dependency>
 ```
 
@@ -52,7 +53,7 @@ You can then write your own code to interact with Kafka or use the following met
 
 ```java
 kafkaUnitServer.createTopic(testTopic);
-KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic, "key", "value");
 kafkaUnitServer.sendMessages(keyedMessage);
 ```
 
@@ -60,6 +61,7 @@ And to read messages:
 
 ```java
 List<String> messages = kafkaUnitServer.readMessages(testTopic, 1);
+List<String> allMessages = kafkaUnitServer.readAllMessages(testTopic);
 ```
 
 Only `String` messages are supported at the moment.
@@ -89,9 +91,9 @@ public class KafkaUnitIntegrationTest {
     public void junitRuleShouldHaveStartedKafka() throws Exception {
         String testTopic = "TestTopic";
         kafkaUnitRule.getKafkaUnit().createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic, "key", "value");
 
-        kafkaUnitRule.getKafkaUnit().sendMessages(keyedMessage);
+        kafkaUnitServer.sendMessages(keyedMessage);
         List<String> messages = kafkaUnitRule.getKafkaUnit().readMessages(testTopic, 1);
 
         assertEquals(Arrays.asList("value"), messages);
