@@ -20,36 +20,10 @@ import static org.junit.Assert.assertEquals;
 import java.util.Collections;
 import java.util.List;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.junit.Rule;
-import org.junit.Test;
 
-public class KafkaUnitIntegrationTest {
-
-    @Rule
-    public KafkaUnitRule kafkaUnitRule = new KafkaUnitRule(6000, 6001);
-
-    @Rule
-    public KafkaUnitRule kafkaUnitRuleWithConnectionStrings = new KafkaUnitRule("localhost:5000", "localhost:5001");
-
-    @Rule
-    public KafkaUnitRule kafkaUnitRuleWithEphemeralPorts = new KafkaUnitRule();
-
-    @Test
-    public void junitRuleShouldHaveStartedKafka() throws Exception {
-        assertKafkaStartsAndSendsMessage(kafkaUnitRule.getKafkaUnit());
-    }
-
-    @Test
-    public void junitRuleShouldHaveStartedKafkaWithConnectionStrings() throws Exception {
-        assertKafkaStartsAndSendsMessage(kafkaUnitRuleWithConnectionStrings.getKafkaUnit());
-    }
-
-    @Test
-    public void junitRuleShouldHaveStartedKafkaWithEphemeralPorts() throws Exception {
-        assertKafkaStartsAndSendsMessage(kafkaUnitRuleWithEphemeralPorts.getKafkaUnit());
-    }
-
-    public void assertKafkaStartsAndSendsMessage(final KafkaUnit kafkaUnit) throws Exception {
+public abstract class KafkaUnitRuleIntegrationTestBase
+{
+    protected void assertKafkaStartsAndSendsMessage(final KafkaUnit kafkaUnit) throws Exception {
         //given
         String testTopic = "TestTopic";
         kafkaUnit.createTopic(testTopic);

@@ -283,9 +283,11 @@ public class KafkaUnit {
     }
 
     public void shutdown() {
-        if (broker != null) broker.shutdown();
+        if (broker != null) {
+            broker.shutdown();
+            broker.awaitShutdown();
+        }
         if (zookeeper != null) zookeeper.shutdown();
-        getDeleteLogDirectoryAction().run();
     }
 
     public List<ConsumerRecord<String, String>> readRecords(final String topicName, final int maxPoll) {

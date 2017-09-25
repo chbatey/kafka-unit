@@ -29,7 +29,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class KafkaIntegrationTest {
+public class KafkaIntegrationTest extends KafkaUnitRuleIntegrationTestBase {
 
     private KafkaUnit kafkaUnitServer;
 
@@ -52,7 +52,7 @@ public class KafkaIntegrationTest {
 
     @Test
     public void kafkaServerIsAvailable() throws Exception {
-        assertKafkaServerIsAvailable(kafkaUnitServer);
+        assertKafkaStartsAndSendsMessage(kafkaUnitServer);
     }
 
     @Test
@@ -105,7 +105,7 @@ public class KafkaIntegrationTest {
     public void startKafkaServerWithoutParamsAndSendMessage() throws Exception {
         KafkaUnit noParamServer = new KafkaUnit();
         noParamServer.startup();
-        assertKafkaServerIsAvailable(noParamServer);
+        assertKafkaStartsAndSendsMessage(noParamServer);
         assertTrue("Kafka port needs to be non-negative", noParamServer.getBrokerPort() > 0);
         assertTrue("Zookeeper port needs to be non-negative", noParamServer.getZkPort() > 0);
     }
@@ -135,19 +135,5 @@ public class KafkaIntegrationTest {
         for(int i = 0; i < 17; i++){
             kafkaUnitServer.createTopic(topicPrefix + i);
         }
-    }
-
-    private void assertKafkaServerIsAvailable(KafkaUnit server) {
-        //given
-        String testTopic = "TestTopic";
-        server.createTopic(testTopic);
-        ProducerRecord<String, String> message = new ProducerRecord<>(testTopic,
-            "key",
-            "value");
-        //when
-        server.sendMessages(message);
-        List<String> messages = server.readMessages(testTopic, 1);
-        //then
-        assertEquals(Collections.singletonList("value"), messages);
     }
 }
