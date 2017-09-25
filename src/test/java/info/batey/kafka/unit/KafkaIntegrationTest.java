@@ -22,15 +22,9 @@ import static org.junit.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import kafka.server.KafkaServerStartable;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.LongSerializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -74,7 +68,7 @@ public class KafkaIntegrationTest {
         kafkaUnitServer.sendMessages(keyedMessage);
         assertEquals(kafkaUnitServer.readAllMessages(testTopic), Collections.singletonList("value"));
         kafkaUnitServer.deleteTopic(testTopic);
-        assertEquals(kafkaUnitServer.readAllMessages(testTopic), Collections.<String>emptyList());
+        assertFalse(kafkaUnitServer.listTopics().contains(testTopic));
     }
 
     @Test
@@ -114,19 +108,6 @@ public class KafkaIntegrationTest {
         assertKafkaServerIsAvailable(noParamServer);
         assertTrue("Kafka port needs to be non-negative", noParamServer.getBrokerPort() > 0);
         assertTrue("Zookeeper port needs to be non-negative", noParamServer.getZkPort() > 0);
-    }
-
-    @Test
-    public void canUseKafkaConnectToProduce() throws Exception {
-        final String topic = "KafkaConnectTestTopic";
-        Properties props = new Properties();
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getCanonicalName());
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaUnitServer.getKafkaConnect());
-        Producer<Long, String> producer = new KafkaProducer<>(props);
-        ProducerRecord<Long, String> record = new ProducerRecord<>(topic, 1L, "test");
-        producer.send(record);      // would be good to have KafkaUnit.sendMessages() support the new producer
-        assertEquals("test", kafkaUnitServer.readMessages(topic, 1).get(0));
     }
 
     @Test

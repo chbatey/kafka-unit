@@ -15,16 +15,13 @@
  */
 package info.batey.kafka.unit;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Collections;
-import kafka.producer.KeyedMessage;
+import java.util.List;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.Rule;
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.List;
-
-import static org.junit.Assert.assertEquals;
 
 public class KafkaUnitIntegrationTest {
 
@@ -59,13 +56,10 @@ public class KafkaUnitIntegrationTest {
         ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic,
             "key",
             "value");
-
         //when
-        kafkaUnitRule.getKafkaUnit().sendMessages(keyedMessage);
-        List<String> messages = kafkaUnitRule.getKafkaUnit().readMessages(testTopic, 1);
-
+        kafkaUnit.sendMessages(keyedMessage);
+        List<String> messages = kafkaUnit.readMessages(testTopic, 1);
         //then
         assertEquals(Collections.singletonList("value"), messages);
-
     }
 }

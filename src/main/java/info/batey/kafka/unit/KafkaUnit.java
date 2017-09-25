@@ -143,13 +143,13 @@ public class KafkaUnit {
         kafkaBrokerConfig.setProperty("log.flush.interval.messages", String.valueOf(1));
         kafkaBrokerConfig.setProperty("delete.topic.enable", String.valueOf(true));
         kafkaBrokerConfig.setProperty("offsets.topic.replication.factor", String.valueOf(1));
+        kafkaBrokerConfig.setProperty("auto.create.topics.enable", String.valueOf(false));
 
         broker = new KafkaServerStartable(new KafkaConfig(kafkaBrokerConfig));
         broker.startup();
     }
 
-    private Runnable getDeleteLogDirectoryAction()
-    {
+    private Runnable getDeleteLogDirectoryAction() {
         return new Runnable() {
             @Override
             public void run() {
