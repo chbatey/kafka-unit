@@ -15,6 +15,7 @@
  */
 package info.batey.kafka.unit;
 
+import info.batey.kafka.unit.KafkaUnit.KafkaBroker;
 import kafka.producer.KeyedMessage;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -27,7 +28,7 @@ import org.junit.Before;
 import org.junit.ComparisonFailure;
 import org.junit.Test;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
@@ -44,15 +45,21 @@ public class KafkaIntegrationTest {
 
     @Before
     public void setUp() throws Exception {
-        kafkaUnitServer = new KafkaUnit(5000, 5001);
+        kafkaUnitServer = new KafkaUnit();
         kafkaUnitServer.setKafkaBrokerConfig("log.segment.bytes", "1024");
         kafkaUnitServer.startup();
     }
 
     @After
     public void shutdown() throws Exception {
-        assertThat(kafkaUnitServer.getBrokers().get(0).getKafkaServer().serverConfig().logSegmentBytes()).isEqualTo(1024);
-        kafkaUnitServer.shutdown();
+        try {
+            List<KafkaBroker> brokers = kafkaUnitServer.getBrokers();
+            for (KafkaBroker broker : brokers) {
+                assertThat(broker.getKafkaServer().serverConfig().logSegmentBytes()).isEqualTo(1024);
+            }
+        } finally {
+            kafkaUnitServer.shutdown();
+        }
     }
 
     @Test
@@ -88,7 +95,7 @@ public class KafkaIntegrationTest {
         KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
 
         //when
-        kafkaUnitServer.sendMessages(keyedMessage);
+        kafkaUnitServer.send(keyedMessage);
         kafkaUnitServer.readMessages(testTopic, 1);
 
         kafkaUnitServer.deleteTopic(testTopic);
@@ -136,7 +143,7 @@ public class KafkaIntegrationTest {
 
     @Test
     public void canUseKafkaConnectToProduce() throws Exception {
-        final String topic = "KafkakConnectTestTopic";
+        final String topic = "KafkaConnectTestTopic";
         Properties props = new Properties();
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getCanonicalName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
@@ -183,6 +190,7 @@ public class KafkaIntegrationTest {
         List<String> messages = server.readMessages(testTopic, 1);
 
         //then
-        assertEquals(Arrays.asList("value"), messages);
+        assertEquals(Collections.singletonList("value"), messages);
     }
+
 }

@@ -34,7 +34,7 @@ public class MultipleBrokersIntegrationTest {
 
     @Before
     public void before() {
-        kafkaUnit = new KafkaUnit(2);
+        kafkaUnit = new KafkaUnit().withNumOfBrokers(2);
         kafkaUnit.startup();
     }
 

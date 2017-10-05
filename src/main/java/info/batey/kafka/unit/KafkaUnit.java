@@ -15,6 +15,7 @@
  */
 package info.batey.kafka.unit;
 
+import kafka.admin.AdminUtils$;
 import kafka.admin.ReassignPartitionsCommand;
 import kafka.admin.TopicCommand;
 import kafka.common.TopicAndPartition;
@@ -86,6 +87,10 @@ public class KafkaUnit {
     private int numOfBrokers;
     private ZkClient zkClient;
     private ZkUtils zkUtils;
+
+    public KafkaUnit() {
+        this(getEphemeralPort(), getEphemeralPort());
+    }
 
     public KafkaUnit(int zkPort, int brokerPort) {
         this(zkPort, brokerPort, 16);
