@@ -15,16 +15,8 @@
  */
 package info.batey.kafka.unit;
 
-import static org.junit.Assert.*;
-
-import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.TimeoutException;
-
-import kafka.producer.KeyedMessage;
 import kafka.server.KafkaServerStartable;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -35,8 +27,20 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.ComparisonFailure;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.reflect.Field;
+import java.util.Collections;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.TimeoutException;
+
+import static org.junit.Assert.*;
 
 public class KafkaIntegrationTest {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaIntegrationTest.class);
 
     private KafkaUnit kafkaUnitServer;
 
@@ -67,7 +71,7 @@ public class KafkaIntegrationTest {
         //given
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
         kafkaUnitServer.sendMessages(keyedMessage);
@@ -87,7 +91,7 @@ public class KafkaIntegrationTest {
         //given
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
         kafkaUnitServer.sendMessages(keyedMessage);
@@ -150,18 +154,19 @@ public class KafkaIntegrationTest {
     }
 
     @Test
-    public void  canReadKeyedMessages() throws Exception {
+    public void canReadKeyedMessages() throws Exception {
         //given
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
+        LOGGER.info("sendMessages: " + keyedMessage);
         kafkaUnitServer.sendMessages(keyedMessage);
 
-        KeyedMessage<String, String> receivedMessage = kafkaUnitServer.readKeyedMessages(testTopic, 1).get(0);
+        ConsumerRecord<String, String> receivedMessage = kafkaUnitServer.readKeyedMessages(testTopic, 1).get(0);
 
-        assertEquals("Received message value is incorrect", "value", receivedMessage.message());
+        assertEquals("Received message value is incorrect", "value", receivedMessage.value());
         assertEquals("Received message key is incorrect", "key", receivedMessage.key());
         assertEquals("Received message topic is incorrect", testTopic, receivedMessage.topic());
     }
@@ -178,13 +183,13 @@ public class KafkaIntegrationTest {
         //given
         String testTopic = "TestTopic";
         server.createTopic(testTopic);
-        KeyedMessage<String, String> keyedMessage = new KeyedMessage<>(testTopic, "key", "value");
+        ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic, "key", "value");
 
         //when
         server.sendMessages(keyedMessage);
         List<String> messages = server.readMessages(testTopic, 1);
 
         //then
-        assertEquals(Arrays.asList("value"), messages);
+        assertEquals(Collections.singletonList("value"), messages);
     }
 }

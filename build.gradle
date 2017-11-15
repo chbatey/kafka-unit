@@ -31,6 +31,10 @@ task sourcesJar(type: Jar) {
     from sourceSets.main.allSource
 }
 
+test{
+    maxHeapSize = "4096m"
+}
+
 artifacts {
     archives javadocJar, sourcesJar
 }
@@ -98,7 +102,7 @@ repositories {
 
 dependencies {
     compile 'junit:junit:4.11'
-    compile('org.apache.kafka:kafka_2.11:0.10.2.0') {
+    compile('org.apache.kafka:kafka_2.11:1.0.0') {
         exclude module: 'slf4j-simple'
         exclude module: 'slf4j-log4j12'
         exclude module: 'jmxtools'
