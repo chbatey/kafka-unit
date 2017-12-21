@@ -15,54 +15,51 @@
  */
 package info.batey.kafka.unit;
 
-import kafka.admin.TopicCommand;
-import kafka.consumer.Consumer;
-import kafka.consumer.ConsumerConfig;
-import kafka.consumer.ConsumerTimeoutException;
-import kafka.consumer.KafkaStream;
-import kafka.javaapi.consumer.ConsumerConnector;
-import kafka.javaapi.producer.Producer;
-import kafka.message.MessageAndMetadata;
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
-import kafka.serializer.StringDecoder;
-import kafka.serializer.StringEncoder;
-import kafka.server.KafkaConfig;
-import kafka.server.KafkaServerStartable;
-import kafka.utils.VerifiableProperties;
-import kafka.utils.ZkUtils;
-import org.apache.commons.io.FileUtils;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.security.JaasUtils;
-
-import org.junit.ComparisonFailure;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import scala.Console;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.nio.file.Files;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import kafka.admin.TopicCommand;
+import kafka.server.KafkaConfig;
+import kafka.server.KafkaServerStartable;
+import kafka.utils.ZkUtils;
+import org.apache.commons.io.FileUtils;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.security.JaasUtils;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.Console;
+
 
 public class KafkaUnit {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUnit.class);
 
-    private KafkaServerStartable broker;
-
-    private Zookeeper zookeeper;
     private final String zookeeperString;
     private final String brokerString;
-    private int zkPort;
-    private int brokerPort;
-    private Producer<String, String> producer = null;
-    private Properties kafkaBrokerConfig = new Properties();
-    private int zkMaxConnections;
+    private final int zkPort;
+    private final int brokerPort;
+    private final Properties kafkaBrokerConfig = new Properties();
+    private final int zkMaxConnections;
+
+    private KafkaServerStartable broker;
+    private Zookeeper zookeeper;
+    private KafkaProducer<String, String> producer;
+    private File logDir;
 
     public KafkaUnit() throws IOException {
         this(getEphemeralPort(), getEphemeralPort());
@@ -72,20 +69,29 @@ public class KafkaUnit {
         this(zkPort, brokerPort, 16);
     }
 
-    public KafkaUnit(int zkPort, int brokerPort, int zkMaxConnections) {
-        this.zkPort = zkPort;
-        this.brokerPort = brokerPort;
-        this.zookeeperString = "localhost:" + zkPort;
-        this.brokerString = "localhost:" + brokerPort;
-        this.zkMaxConnections = zkMaxConnections;
-    }
-
     public KafkaUnit(String zkConnectionString, String kafkaConnectionString) {
         this(parseConnectionString(zkConnectionString), parseConnectionString(kafkaConnectionString));
     }
 
     public KafkaUnit(String zkConnectionString, String kafkaConnectionString, int zkMaxConnections) {
         this(parseConnectionString(zkConnectionString), parseConnectionString(kafkaConnectionString), zkMaxConnections);
+    }
+
+    public KafkaUnit(int zkPort, int brokerPort, int zkMaxConnections) {
+        this.zkPort = zkPort;
+        this.brokerPort = brokerPort;
+        this.zookeeperString = "localhost:" + zkPort;
+        this.brokerString = "localhost:" + brokerPort;
+        this.zkMaxConnections = zkMaxConnections;
+        this.producer = createProducer();
+    }
+
+    private KafkaProducer<String, String> createProducer() {
+        final Properties props = new Properties();
+        props.put("bootstrap.servers", brokerString);
+        props.put("key.serializer", StringSerializer.class.getName());
+        props.put("value.serializer", StringSerializer.class.getName());
+        return new KafkaProducer<>(props);
     }
 
     private static int parseConnectionString(String connectionString) {
@@ -122,23 +128,13 @@ public class KafkaUnit {
         zookeeper = new Zookeeper(zkPort, zkMaxConnections);
         zookeeper.startup();
 
-        final File logDir;
         try {
             logDir = Files.createTempDirectory("kafka").toFile();
         } catch (IOException e) {
             throw new RuntimeException("Unable to start Kafka", e);
         }
         logDir.deleteOnExit();
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    FileUtils.deleteDirectory(logDir);
-                } catch (IOException e) {
-                    LOGGER.warn("Problems deleting temporary directory " + logDir.getAbsolutePath(), e);
-                }
-            }
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(getDeleteLogDirectoryAction()));
         kafkaBrokerConfig.setProperty("zookeeper.connect", zookeeperString);
         kafkaBrokerConfig.setProperty("broker.id", "1");
         kafkaBrokerConfig.setProperty("host.name", "localhost");
@@ -147,9 +143,25 @@ public class KafkaUnit {
         kafkaBrokerConfig.setProperty("log.flush.interval.messages", String.valueOf(1));
         kafkaBrokerConfig.setProperty("delete.topic.enable", String.valueOf(true));
         kafkaBrokerConfig.setProperty("offsets.topic.replication.factor", String.valueOf(1));
+        kafkaBrokerConfig.setProperty("auto.create.topics.enable", String.valueOf(false));
 
         broker = new KafkaServerStartable(new KafkaConfig(kafkaBrokerConfig));
         broker.startup();
+    }
+
+    private Runnable getDeleteLogDirectoryAction() {
+        return new Runnable() {
+            @Override
+            public void run() {
+                if (logDir != null) {
+                    try {
+                        FileUtils.deleteDirectory(logDir);
+                    } catch (IOException e) {
+                        LOGGER.warn("Problems deleting temporary directory " + logDir.getAbsolutePath(), e);
+                    }
+                }
+            }
+        };
     }
 
     public String getKafkaConnect() {
@@ -168,8 +180,9 @@ public class KafkaUnit {
         createTopic(topicName, 1);
     }
 
-    public void createTopic(String topicName, Integer numPartitions) {
+    public void createTopic(String topicName, int numPartitions) {
         // setup
+
         String[] arguments = new String[9];
         arguments[0] = "--create";
         arguments[1] = "--zookeeper";
@@ -177,7 +190,7 @@ public class KafkaUnit {
         arguments[3] = "--replication-factor";
         arguments[4] = "1";
         arguments[5] = "--partitions";
-        arguments[6] = "" + Integer.valueOf(numPartitions);
+        arguments[6] = String.valueOf(numPartitions);
         arguments[7] = "--topic";
         arguments[8] = topicName;
         TopicCommand.TopicCommandOptions opts = new TopicCommand.TopicCommandOptions(arguments);
@@ -197,7 +210,7 @@ public class KafkaUnit {
     /**
      * @return All topic names
      */
-    public List<String> listTopics(){
+    public List<String> listTopics() {
         String[] arguments = new String[3];
         arguments[0] = "--zookeeper";
         arguments[1] = zookeeperString;
@@ -207,7 +220,7 @@ public class KafkaUnit {
         ZkUtils zkUtils = ZkUtils.apply(opts.options().valueOf(opts.zkConnectOpt()),
                 30000, 30000, JaasUtils.isZkSecurityEnabled());
         final List<String> topics = new ArrayList<>();
-        try{
+        try {
             // run
             LOGGER.info("Executing: ListTopics " + Arrays.toString(arguments));
 
@@ -236,11 +249,12 @@ public class KafkaUnit {
     /**
      * Delete all topics
      */
-    public void deleteAllTopics(){
-        for (String topic: listTopics()){
-            try{
+    public void deleteAllTopics() {
+        for (String topic: listTopics()) {
+            try {
                 deleteTopic(topic);
-            } catch (Throwable ignored){}
+            } catch (Throwable ignored) {
+            }
         }
     }
 
@@ -248,7 +262,7 @@ public class KafkaUnit {
      * Delete a topic.
      * @param topicName The name of the topic to delete
      */
-    public void deleteTopic(String topicName){
+    public void deleteTopic(String topicName) {
         String[] arguments = new String[5];
         arguments[0] = "--zookeeper";
         arguments[1] = zookeeperString;
@@ -259,7 +273,7 @@ public class KafkaUnit {
 
         ZkUtils zkUtils = ZkUtils.apply(opts.options().valueOf(opts.zkConnectOpt()),
                 30000, 30000, JaasUtils.isZkSecurityEnabled());
-        try{
+        try {
             // run
             LOGGER.info("Executing: DeleteTopic " + Arrays.toString(arguments));
             TopicCommand.deleteTopic(zkUtils, opts);
@@ -269,112 +283,87 @@ public class KafkaUnit {
     }
 
     public void shutdown() {
-        if (broker != null) broker.shutdown();
+        if (broker != null) {
+            broker.shutdown();
+            broker.awaitShutdown();
+        }
         if (zookeeper != null) zookeeper.shutdown();
     }
 
-    public List<KeyedMessage<String, String>> readKeyedMessages(final String topicName, final int expectedMessages) throws TimeoutException {
-        return readMessages(topicName, expectedMessages, new MessageExtractor<KeyedMessage<String, String>>() {
-
-            @Override
-            public KeyedMessage<String, String> extract(MessageAndMetadata<String, String> messageAndMetadata) {
-                return new KeyedMessage(topicName, messageAndMetadata.key(), messageAndMetadata.message());
-            }
-        });
+    public List<ConsumerRecord<String, String>> readRecords(final String topicName, final int maxPoll) {
+        return readMessages(topicName, maxPoll, new PasstroughMessageExtractor());
     }
 
-    public List<String> readMessages(String topicName, final int expectedMessages) throws TimeoutException {
-        return readMessages(topicName, expectedMessages, new MessageExtractor<String>() {
-            @Override
-            public String extract(MessageAndMetadata<String, String> messageAndMetadata) {
-                return messageAndMetadata.message();
-            }
-        });
+    public List<String> readMessages(final String topicName, final int maxPoll) {
+        return readMessages(topicName, maxPoll, new ValueMessageExtractor());
     }
 
-    public List<String> pollMessages(String topicName) throws TimeoutException {
-        return readMessages(topicName, -1, new MessageExtractor<String>() {
-            @Override
-            public String extract(MessageAndMetadata<String, String> messageAndMetadata) {
-                return messageAndMetadata.message();
-            }
-        });
+    public List<String> readAllMessages(final String topicName) {
+        return readMessages(topicName, Integer.MAX_VALUE, new ValueMessageExtractor());
     }
 
-    private <T> List<T> readMessages(String topicName, final int expectedMessages, final MessageExtractor<T> messageExtractor) throws TimeoutException {
-        ExecutorService singleThread = Executors.newSingleThreadExecutor();
-        Properties consumerProperties = new Properties();
-        consumerProperties.put("zookeeper.connect", zookeeperString);
-        consumerProperties.put("group.id", "10");
-        consumerProperties.put("socket.timeout.ms", "500");
-        consumerProperties.put("consumer.id", "test");
-        consumerProperties.put("auto.offset.reset", "smallest");
-        consumerProperties.put("consumer.timeout.ms", "500");
-        ConsumerConnector javaConsumerConnector = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumerProperties));
-        StringDecoder stringDecoder = new StringDecoder(new VerifiableProperties(new Properties()));
-        Map<String, Integer> topicMap = new HashMap<>();
-        topicMap.put(topicName, 1);
-        Map<String, List<KafkaStream<String, String>>> events = javaConsumerConnector.createMessageStreams(topicMap, stringDecoder, stringDecoder);
-        List<KafkaStream<String, String>> events1 = events.get(topicName);
-        final KafkaStream<String, String> kafkaStreams = events1.get(0);
-
-
-        Future<List<T>> submit = singleThread.submit(new Callable<List<T>>() {
-            public List<T> call() throws Exception {
-                List<T> messages = new ArrayList<>();
-                try {
-                    for (MessageAndMetadata<String, String> kafkaStream : kafkaStreams) {
-                        T message = messageExtractor.extract(kafkaStream);
-                        LOGGER.info("Received message: {}", kafkaStream.message());
-                        messages.add(message);
-                    }
-                } catch (ConsumerTimeoutException e) {
-                    // always gets throws reaching the end of the stream
-                }
-                if (expectedMessages >= 0 && messages.size() != expectedMessages) {
-                    throw new ComparisonFailure("Incorrect number of messages returned", Integer.toString(expectedMessages),
-                            Integer.toString(messages.size()));
-                }
-                return messages;
+    private <T> List<T> readMessages(final String topicName, final int maxPoll, final MessageExtractor<T> messageExtractor) {
+        final Properties props = new Properties();
+        props.put("bootstrap.servers", brokerString);
+        props.put("group.id", "test");
+        props.put("enable.auto.commit", "true");
+        props.put("auto.commit.interval.ms", "1000");
+        props.put("session.timeout.ms", "30000");
+        props.put("key.deserializer", StringDeserializer.class.getName());
+        props.put("value.deserializer", StringDeserializer.class.getName());
+        props.put("max.poll.records", String.valueOf(maxPoll));
+        try (final KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<>(props)) {
+            kafkaConsumer.subscribe(Collections.singletonList(topicName));
+            kafkaConsumer.poll(0); // dummy poll
+            kafkaConsumer.seekToBeginning(Collections.singletonList(new TopicPartition(topicName, 0)));
+            final ConsumerRecords<String, String> records = kafkaConsumer.poll(1000);
+            final List<T> messages = new ArrayList<>();
+            for (ConsumerRecord<String, String> record : records) {
+                messages.add(messageExtractor.extract(record));
             }
-        });
-
-        try {
-            return submit.get(3, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            if (e.getCause() instanceof ComparisonFailure) {
-                throw (ComparisonFailure) e.getCause();
-            }
-            throw new TimeoutException("Timed out waiting for messages");
-        } finally {
-            singleThread.shutdown();
-            javaConsumerConnector.shutdown();
+            return messages;
         }
     }
+
 
     @SafeVarargs
-    public final void sendMessages(KeyedMessage<String, String> message, KeyedMessage<String, String>... messages) {
-        if (producer == null) {
-            Properties props = new Properties();
-            props.put("serializer.class", StringEncoder.class.getName());
-            props.put("metadata.broker.list", brokerString);
-            ProducerConfig config = new ProducerConfig(props);
-            producer = new Producer<>(config);
+    public final void sendMessages(final ProducerRecord<String, String>... records) {
+        for (final ProducerRecord<String, String> record: records) {
+            try {
+                producer.send(record).get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            } finally {
+                producer.flush();
+            }
         }
-        producer.send(message);
-        producer.send(Arrays.asList(messages));
     }
 
     /**
      * Set custom broker configuration.
-     * See avaliable config keys in the kafka documentation: http://kafka.apache.org/documentation.html#brokerconfigs
+     * See available config keys in the kafka documentation: http://kafka.apache.org/documentation.html#brokerconfigs
      */
     public final void setKafkaBrokerConfig(String configKey, String configValue) {
         kafkaBrokerConfig.setProperty(configKey, configValue);
     }
 
     private interface MessageExtractor<T> {
-        T extract(MessageAndMetadata<String, String> messageAndMetadata);
+        T extract(ConsumerRecord<String, String> record);
+    }
+
+    public class ValueMessageExtractor implements MessageExtractor<String> {
+        @Override
+        public String extract(final ConsumerRecord<String, String> record) {
+            return record.value();
+        }
+    }
+
+    public class PasstroughMessageExtractor implements MessageExtractor<ConsumerRecord<String, String>> {
+        @Override
+        public ConsumerRecord<String, String> extract(final ConsumerRecord<String, String> record)
+        {
+            return record;
+        }
     }
 }
 
