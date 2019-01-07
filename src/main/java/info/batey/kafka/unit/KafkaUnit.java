@@ -15,21 +15,10 @@
  */
 package info.batey.kafka.unit;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.net.ServerSocket;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 import kafka.admin.TopicCommand;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
-import kafka.utils.ZkUtils;
+import kafka.zk.KafkaZkClient;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -40,9 +29,18 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.common.utils.SystemTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Console;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.net.ServerSocket;
+import java.nio.file.Files;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 
 public class KafkaUnit {
@@ -195,14 +193,10 @@ public class KafkaUnit {
         arguments[8] = topicName;
         TopicCommand.TopicCommandOptions opts = new TopicCommand.TopicCommandOptions(arguments);
 
-        ZkUtils zkUtils = ZkUtils.apply(opts.options().valueOf(opts.zkConnectOpt()),
-                30000, 30000, JaasUtils.isZkSecurityEnabled());
-        try{
+        try (KafkaZkClient zkUtils = getZkClient(opts)) {
             // run
             LOGGER.info("Executing: CreateTopic " + Arrays.toString(arguments));
             TopicCommand.createTopic(zkUtils, opts);
-        } finally {
-            zkUtils.close();
         }
 
     }
@@ -217,40 +211,46 @@ public class KafkaUnit {
         arguments[2] = "--list";
         TopicCommand.TopicCommandOptions opts = new TopicCommand.TopicCommandOptions(arguments);
 
-        ZkUtils zkUtils = ZkUtils.apply(opts.options().valueOf(opts.zkConnectOpt()),
-                30000, 30000, JaasUtils.isZkSecurityEnabled());
-        final List<String> topics = new ArrayList<>();
-        try {
+        try (KafkaZkClient client = getZkClient(opts)) {
+            final List<String> topics = new ArrayList<>();
             // run
             LOGGER.info("Executing: ListTopics " + Arrays.toString(arguments));
 
             PrintStream oldOut = Console.out();
-            try{
-                Console.setOut(new PrintStream(oldOut){
+            try {
+                Console.setOut(new PrintStream(oldOut) {
                     @Override
                     public void print(String s) {
                         super.print(s);
-                        if(!s.endsWith("marked for deletion")){
+                        if (!s.endsWith("marked for deletion")) {
                             topics.add(s);
                         }
                     }
                 });
-                TopicCommand.listTopics(zkUtils, opts);
+                TopicCommand.listTopics(client, opts);
             } finally {
                 Console.setOut(oldOut);
             }
-        } finally {
-            zkUtils.close();
+            return topics;
         }
+    }
 
-        return topics;
+    private KafkaZkClient getZkClient(TopicCommand.TopicCommandOptions opts) {
+        return KafkaZkClient.apply(opts.options().valueOf(opts.zkConnectOpt()),
+                JaasUtils.isZkSecurityEnabled(),
+                30000,
+                30000,
+                1000,
+                new SystemTime(),
+                "kafka.server",
+                "SessionExpireListener");
     }
 
     /**
      * Delete all topics
      */
     public void deleteAllTopics() {
-        for (String topic: listTopics()) {
+        for (String topic : listTopics()) {
             try {
                 deleteTopic(topic);
             } catch (Throwable ignored) {
@@ -260,6 +260,7 @@ public class KafkaUnit {
 
     /**
      * Delete a topic.
+     *
      * @param topicName The name of the topic to delete
      */
     public void deleteTopic(String topicName) {
@@ -271,14 +272,10 @@ public class KafkaUnit {
         arguments[4] = topicName;
         TopicCommand.TopicCommandOptions opts = new TopicCommand.TopicCommandOptions(arguments);
 
-        ZkUtils zkUtils = ZkUtils.apply(opts.options().valueOf(opts.zkConnectOpt()),
-                30000, 30000, JaasUtils.isZkSecurityEnabled());
-        try {
+        try (KafkaZkClient zkUtils = getZkClient(opts)) {
             // run
             LOGGER.info("Executing: DeleteTopic " + Arrays.toString(arguments));
             TopicCommand.deleteTopic(zkUtils, opts);
-        } finally {
-            zkUtils.close();
         }
     }
 
@@ -328,7 +325,7 @@ public class KafkaUnit {
 
     @SafeVarargs
     public final void sendMessages(final ProducerRecord<String, String>... records) {
-        for (final ProducerRecord<String, String> record: records) {
+        for (final ProducerRecord<String, String> record : records) {
             try {
                 producer.send(record).get();
             } catch (InterruptedException | ExecutionException e) {
@@ -360,8 +357,7 @@ public class KafkaUnit {
 
     public class PasstroughMessageExtractor implements MessageExtractor<ConsumerRecord<String, String>> {
         @Override
-        public ConsumerRecord<String, String> extract(final ConsumerRecord<String, String> record)
-        {
+        public ConsumerRecord<String, String> extract(final ConsumerRecord<String, String> record) {
             return record;
         }
     }
