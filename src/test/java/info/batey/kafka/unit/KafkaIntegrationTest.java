@@ -15,13 +15,6 @@
  */
 package info.batey.kafka.unit;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import java.lang.reflect.Field;
-import java.util.Collections;
-import java.util.List;
 import kafka.server.KafkaServerStartable;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -29,12 +22,18 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.lang.reflect.Field;
+import java.util.Collections;
+import java.util.List;
+
+import static org.junit.Assert.*;
+
 public class KafkaIntegrationTest extends KafkaUnitRuleIntegrationTestBase {
 
     private KafkaUnit kafkaUnitServer;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         kafkaUnitServer = new KafkaUnit(5000, 5001);
         kafkaUnitServer.setKafkaBrokerConfig("log.segment.bytes", "1024");
         kafkaUnitServer.startup();
@@ -45,7 +44,7 @@ public class KafkaIntegrationTest extends KafkaUnitRuleIntegrationTestBase {
         Field f = kafkaUnitServer.getClass().getDeclaredField("broker");
         f.setAccessible(true);
         KafkaServerStartable broker = (KafkaServerStartable) f.get(kafkaUnitServer);
-        assertEquals(1024, (int) broker.serverConfig().logSegmentBytes());
+        assertEquals(1024, (int) broker.staticServerConfig().logSegmentBytes());
         kafkaUnitServer.deleteAllTopics();
         kafkaUnitServer.shutdown();
     }
@@ -61,8 +60,8 @@ public class KafkaIntegrationTest extends KafkaUnitRuleIntegrationTestBase {
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
         ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic,
-            "key",
-            "value");
+                "key",
+                "value");
 
         //when
         kafkaUnitServer.sendMessages(keyedMessage);
@@ -116,8 +115,8 @@ public class KafkaIntegrationTest extends KafkaUnitRuleIntegrationTestBase {
         String testTopic = "TestTopic";
         kafkaUnitServer.createTopic(testTopic);
         ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic,
-            "key",
-            "value");
+                "key",
+                "value");
 
         //when
         kafkaUnitServer.sendMessages(keyedMessage);
@@ -130,9 +129,9 @@ public class KafkaIntegrationTest extends KafkaUnitRuleIntegrationTestBase {
     }
 
     @Test(timeout = 30000)
-    public void closeConnectionBetweenTopicCreations() throws Exception{
+    public void closeConnectionBetweenTopicCreations() throws Exception {
         String topicPrefix = "TestTopic";
-        for(int i = 0; i < 17; i++){
+        for (int i = 0; i < 17; i++) {
             kafkaUnitServer.createTopic(topicPrefix + i);
         }
     }
