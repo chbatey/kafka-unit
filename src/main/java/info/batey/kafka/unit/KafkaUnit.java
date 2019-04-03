@@ -25,6 +25,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.security.JaasUtils;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -41,6 +42,7 @@ import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 
 public class KafkaUnit {
@@ -312,7 +314,11 @@ public class KafkaUnit {
         try (final KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<>(props)) {
             kafkaConsumer.subscribe(Collections.singletonList(topicName));
             kafkaConsumer.poll(0); // dummy poll
-            kafkaConsumer.seekToBeginning(Collections.singletonList(new TopicPartition(topicName, 0)));
+            kafkaConsumer.seekToBeginning(kafkaConsumer.partitionsFor(topicName)
+                    .stream()
+                    .map(PartitionInfo::partition)
+                    .map(a -> new TopicPartition(topicName, a))
+                    .collect(Collectors.toList()));
             final ConsumerRecords<String, String> records = kafkaConsumer.poll(1000);
             final List<T> messages = new ArrayList<>();
             for (ConsumerRecord<String, String> record : records) {
