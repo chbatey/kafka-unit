@@ -25,6 +25,7 @@ import org.junit.Test;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.Assert.*;
 
@@ -68,6 +69,23 @@ public class KafkaIntegrationTest extends KafkaUnitRuleIntegrationTestBase {
         assertEquals(kafkaUnitServer.readAllMessages(testTopic), Collections.singletonList("value"));
         kafkaUnitServer.deleteTopic(testTopic);
         assertFalse(kafkaUnitServer.listTopics().contains(testTopic));
+    }
+
+    @Test
+    public void canReadAllMessageForTopicWithMultiplePartitions() {
+        //given
+        String testTopic = "TestTopic";
+        kafkaUnitServer.createTopic(testTopic, 3);
+
+        //when
+        for (int i = 0; i < 10; i++) {
+            ProducerRecord<String, String> keyedMessage = new ProducerRecord<>(testTopic,
+                    UUID.randomUUID().toString(),
+                    "value");
+            kafkaUnitServer.sendMessages(keyedMessage);
+        }
+
+        assertEquals(kafkaUnitServer.readAllMessages(testTopic).size(), 10);
     }
 
     @Test
