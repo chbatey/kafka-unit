@@ -20,6 +20,8 @@ import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
 import kafka.zk.KafkaZkClient;
 import org.apache.commons.io.FileUtils;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -196,7 +198,9 @@ public class KafkaUnit {
         try (KafkaZkClient zkUtils = getZkClient(opts)) {
             // run
             LOGGER.info("Executing: CreateTopic " + Arrays.toString(arguments));
-            TopicCommand.createTopic(zkUtils, opts);
+            TopicCommand.ZookeeperTopicService zookeeperTopicService =
+                    new TopicCommand.ZookeeperTopicService(zkUtils);
+            zookeeperTopicService.createTopic(opts);
         }
 
     }
@@ -227,7 +231,8 @@ public class KafkaUnit {
                         }
                     }
                 });
-                TopicCommand.listTopics(client, opts);
+                TopicCommand.ZookeeperTopicService zkTopicService = new TopicCommand.ZookeeperTopicService(client);
+                zkTopicService.listTopics(opts);
             } finally {
                 Console.setOut(oldOut);
             }
@@ -236,7 +241,7 @@ public class KafkaUnit {
     }
 
     private KafkaZkClient getZkClient(TopicCommand.TopicCommandOptions opts) {
-        return KafkaZkClient.apply(opts.options().valueOf(opts.zkConnectOpt()),
+        return KafkaZkClient.apply(opts.zkConnect().get(),
                 JaasUtils.isZkSecurityEnabled(),
                 30000,
                 30000,
@@ -275,7 +280,8 @@ public class KafkaUnit {
         try (KafkaZkClient zkUtils = getZkClient(opts)) {
             // run
             LOGGER.info("Executing: DeleteTopic " + Arrays.toString(arguments));
-            TopicCommand.deleteTopic(zkUtils, opts);
+            TopicCommand.ZookeeperTopicService zkTopicService = new TopicCommand.ZookeeperTopicService(zkUtils);
+            zkTopicService.deleteTopic(opts);
         }
     }
 
